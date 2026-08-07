@@ -8,6 +8,9 @@ import ScanPage from "@/pages/ScanPage";
 import Dashboard from "@/pages/Dashboard";
 import History from "@/pages/History";
 import Users from "@/pages/Users";
+import Labels from "@/pages/Labels";
+import PurchaseOrders from "@/pages/PurchaseOrders";
+import Reports from "@/pages/Reports";
 
 const Protected = ({ children }) => {
   const { isAuthed } = useAuth();
@@ -32,6 +35,9 @@ function App() {
               <Route path="/" element={<Navigate to="/scan" replace />} />
               <Route path="/scan" element={<ScanPage />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/purchase-orders" element={<PurchaseOrders />} />
+              <Route path="/labels" element={<Labels />} />
+              <Route path="/reports" element={<Reports />} />
               <Route path="/history" element={<History />} />
               <Route path="/users" element={<Users />} />
             </Route>

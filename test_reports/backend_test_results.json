@@ -1,7 +1,7 @@
 {
-  "timestamp": "2026-08-07T08:12:54.257552",
-  "total_tests": 38,
-  "passed": 38,
+  "timestamp": "2026-08-07T08:33:13.727423",
+  "total_tests": 65,
+  "passed": 65,
   "failed": 0,
   "success_rate": 100.0,
   "results": [
@@ -138,7 +138,7 @@
     {
       "test": "History returns log entries",
       "passed": true,
-      "details": "Count: 20"
+      "details": "Count: 53"
     },
     {
       "test": "History filter by action works",
@@ -173,7 +173,7 @@
     {
       "test": "Admin can list users",
       "passed": true,
-      "details": "User count: 2"
+      "details": "User count: 4"
     },
     {
       "test": "Tech gets 403 on /users",
@@ -183,7 +183,7 @@
     {
       "test": "Admin can create user",
       "passed": true,
-      "details": "Created user: testuser_081253"
+      "details": "Created user: testuser_083311"
     },
     {
       "test": "GET /technicians returns list",
@@ -193,7 +193,142 @@
     {
       "test": "GET /locations returns list",
       "passed": true,
-      "details": "Count: 3"
+      "details": "Count: 5"
+    },
+    {
+      "test": "GET /usage-trends returns required fields",
+      "passed": true,
+      "details": "Keys: ['days', 'daily', 'by_item', 'total_used', 'active_reagents']"
+    },
+    {
+      "test": "Usage trends daily has days+1 points",
+      "passed": true,
+      "details": "Daily points: 31, expected: 31"
+    },
+    {
+      "test": "Usage trends daily has date and qty",
+      "passed": true,
+      "details": "First entry: {'date': '2026-07-08', 'qty': 0}"
+    },
+    {
+      "test": "Usage trends by_item has name, qty, unit",
+      "passed": true,
+      "details": "First entry keys: ['item_id', 'name', 'unit', 'qty']"
+    },
+    {
+      "test": "Usage trends days=7 returns 8 points",
+      "passed": true,
+      "details": "Daily points: 8"
+    },
+    {
+      "test": "Usage trends days=90 returns 91 points",
+      "passed": true,
+      "details": "Daily points: 91"
+    },
+    {
+      "test": "POST /purchase-orders creates PO",
+      "passed": true,
+      "details": "PO number: PO-202608-0002, status: draft"
+    },
+    {
+      "test": "PO has auto-generated po_number",
+      "passed": true,
+      "details": "PO number: PO-202608-0002"
+    },
+    {
+      "test": "PO total_cost calculated correctly",
+      "passed": true,
+      "details": "Expected: 255.0, Actual: 255.0"
+    },
+    {
+      "test": "New PO has status='draft'",
+      "passed": true,
+      "details": "Status: draft"
+    },
+    {
+      "test": "GET /purchase-orders lists POs",
+      "passed": true,
+      "details": "PO count: 2"
+    },
+    {
+      "test": "GET /purchase-orders/{id} returns PO",
+      "passed": true,
+      "details": "PO ID: f0332843-9cb5-486a-aeb3-f9d1ccb61988"
+    },
+    {
+      "test": "PUT /purchase-orders/{id} updates status to 'ordered'",
+      "passed": true,
+      "details": "Status: ordered"
+    },
+    {
+      "test": "Status='ordered' sets ordered_at timestamp",
+      "passed": true,
+      "details": "ordered_at: 2026-08-07T08:33:12.783182+00:00"
+    },
+    {
+      "test": "POST /purchase-orders/{id}/receive marks as received",
+      "passed": true,
+      "details": "Status: received"
+    },
+    {
+      "test": "Status='received' sets received_at timestamp",
+      "passed": true,
+      "details": "received_at: 2026-08-07T08:33:12.966036+00:00"
+    },
+    {
+      "test": "Receiving PO adds ordered qty to stock",
+      "passed": true,
+      "details": "Stock before: 0, after: 10.0, expected increase: 10"
+    },
+    {
+      "test": "DELETE /purchase-orders/{id} removes PO",
+      "passed": true,
+      "details": "ok: True"
+    },
+    {
+      "test": "Deleted PO returns 404",
+      "passed": true,
+      "details": "Status: 404"
+    },
+    {
+      "test": "GET /settings returns digest settings",
+      "passed": true,
+      "details": "Keys: ['id', 'digest_recipient', 'digest_time', 'digest_timezone', 'email_provider']"
+    },
+    {
+      "test": "Settings has default digest_recipient",
+      "passed": true,
+      "details": "Recipient: supervisor@lab.com"
+    },
+    {
+      "test": "PUT /settings (admin) updates settings",
+      "passed": true,
+      "details": "Recipient: test@lab.com, Time: 10:00"
+    },
+    {
+      "test": "PUT /settings (tech) returns 403",
+      "passed": true,
+      "details": "Status 403"
+    },
+    {
+      "test": "GET /digest returns digest preview",
+      "passed": true,
+      "details": "Keys: ['generated_at', 'recipient', 'schedule', 'low_stock', 'expiring', 'summary']"
+    },
+    {
+      "test": "Digest summary has required counts",
+      "passed": true,
+      "details": "Summary keys: ['low_stock_count', 'expiring_count', 'expired_count']"
+    },
+    {
+      "test": "POST /digest/send returns preview-only response",
+      "passed": true,
+      "details": "ok: False, provider_configured: False"
+    },
+    {
+      "test": "Digest send includes preview message",
+      "passed": true,
+      "details": "Message present: True"
     }
   ]
 }

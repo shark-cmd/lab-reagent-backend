@@ -598,6 +598,295 @@ TEST_CSV_002,CSV Item 2,20,LOT2,2027-01-15,10,Shelf B,Fridge,25.00,unit"""
         else:
             self.log_result("GET /locations returns list", False,
                            f"Status {resp.status_code}: {resp.text}")
+    
+    def test_usage_trends(self):
+        """Test usage trends API"""
+        print("\n=== Testing Usage Trends ===")
+        
+        headers = {"Authorization": f"Bearer {self.admin_token}"}
+        
+        # Test with default days=30
+        resp = requests.get(f"{BASE_URL}/usage-trends?days=30", headers=headers)
+        passed = resp.status_code == 200
+        if passed:
+            data = resp.json()
+            has_required = all(k in data for k in ["daily", "by_item", "total_used", "active_reagents"])
+            self.log_result("GET /usage-trends returns required fields", has_required,
+                           f"Keys: {list(data.keys())}")
+            
+            # Check daily has days+1 points (31 for days=30)
+            daily = data.get("daily", [])
+            passed = len(daily) == 31
+            self.log_result("Usage trends daily has days+1 points", passed,
+                           f"Daily points: {len(daily)}, expected: 31")
+            
+            # Check daily structure
+            if daily:
+                first = daily[0]
+                has_date_qty = "date" in first and "qty" in first
+                self.log_result("Usage trends daily has date and qty", has_date_qty,
+                               f"First entry: {first}")
+            
+            # Check by_item structure
+            by_item = data.get("by_item", [])
+            if by_item:
+                first = by_item[0]
+                has_fields = all(k in first for k in ["name", "qty", "unit"])
+                self.log_result("Usage trends by_item has name, qty, unit", has_fields,
+                               f"First entry keys: {list(first.keys())}")
+        else:
+            self.log_result("GET /usage-trends returns required fields", False,
+                           f"Status {resp.status_code}: {resp.text}")
+        
+        # Test with days=7
+        resp = requests.get(f"{BASE_URL}/usage-trends?days=7", headers=headers)
+        if resp.status_code == 200:
+            data = resp.json()
+            daily = data.get("daily", [])
+            passed = len(daily) == 8
+            self.log_result("Usage trends days=7 returns 8 points", passed,
+                           f"Daily points: {len(daily)}")
+        
+        # Test with days=90
+        resp = requests.get(f"{BASE_URL}/usage-trends?days=90", headers=headers)
+        if resp.status_code == 200:
+            data = resp.json()
+            daily = data.get("daily", [])
+            passed = len(daily) == 91
+            self.log_result("Usage trends days=90 returns 91 points", passed,
+                           f"Daily points: {len(daily)}")
+    
+    def test_purchase_orders(self):
+        """Test Purchase Orders CRUD"""
+        print("\n=== Testing Purchase Orders ===")
+        
+        headers = {"Authorization": f"Bearer {self.admin_token}"}
+        
+        # Create a PO
+        po_data = {
+            "supplier": "Acme Labs",
+            "notes": "Test PO",
+            "lines": [
+                {
+                    "item_id": "",
+                    "barcode": "TEST_PO_ITEM",
+                    "name": "Test Reagent",
+                    "unit": "ml",
+                    "on_hand": 5,
+                    "min_stock": 10,
+                    "order_qty": 10,
+                    "cost": 25.50
+                }
+            ]
+        }
+        
+        resp = requests.post(f"{BASE_URL}/purchase-orders", json=po_data, headers=headers)
+        passed = resp.status_code == 200
+        po_id = None
+        if passed:
+            data = resp.json()
+            po_id = data.get("id")
+            has_fields = all(k in data for k in ["id", "po_number", "supplier", "status", "lines", "total_cost"])
+            self.log_result("POST /purchase-orders creates PO", has_fields,
+                           f"PO number: {data.get('po_number')}, status: {data.get('status')}")
+            
+            # Check auto po_number
+            po_number = data.get("po_number", "")
+            has_po_format = po_number.startswith("PO-")
+            self.log_result("PO has auto-generated po_number", has_po_format,
+                           f"PO number: {po_number}")
+            
+            # Check total_cost calculation
+            expected_cost = 10 * 25.50
+            actual_cost = data.get("total_cost", 0)
+            cost_correct = abs(actual_cost - expected_cost) < 0.01
+            self.log_result("PO total_cost calculated correctly", cost_correct,
+                           f"Expected: {expected_cost}, Actual: {actual_cost}")
+            
+            # Check status is draft
+            is_draft = data.get("status") == "draft"
+            self.log_result("New PO has status='draft'", is_draft,
+                           f"Status: {data.get('status')}")
+        else:
+            self.log_result("POST /purchase-orders creates PO", False,
+                           f"Status {resp.status_code}: {resp.text}")
+            return
+        
+        # List POs
+        resp = requests.get(f"{BASE_URL}/purchase-orders", headers=headers)
+        passed = resp.status_code == 200
+        if passed:
+            data = resp.json()
+            pos = data.get("purchase_orders", [])
+            passed = isinstance(pos, list) and len(pos) > 0
+            self.log_result("GET /purchase-orders lists POs", passed,
+                           f"PO count: {len(pos)}")
+        else:
+            self.log_result("GET /purchase-orders lists POs", False,
+                           f"Status {resp.status_code}: {resp.text}")
+        
+        # Get single PO
+        if po_id:
+            resp = requests.get(f"{BASE_URL}/purchase-orders/{po_id}", headers=headers)
+            passed = resp.status_code == 200
+            if passed:
+                data = resp.json()
+                passed = data.get("id") == po_id
+                self.log_result("GET /purchase-orders/{id} returns PO", passed,
+                               f"PO ID: {data.get('id')}")
+            else:
+                self.log_result("GET /purchase-orders/{id} returns PO", False,
+                               f"Status {resp.status_code}: {resp.text}")
+            
+            # Update PO status to 'ordered'
+            resp = requests.put(f"{BASE_URL}/purchase-orders/{po_id}", 
+                               json={"status": "ordered"}, headers=headers)
+            passed = resp.status_code == 200
+            if passed:
+                data = resp.json()
+                is_ordered = data.get("status") == "ordered"
+                has_ordered_at = bool(data.get("ordered_at"))
+                self.log_result("PUT /purchase-orders/{id} updates status to 'ordered'", is_ordered,
+                               f"Status: {data.get('status')}")
+                self.log_result("Status='ordered' sets ordered_at timestamp", has_ordered_at,
+                               f"ordered_at: {data.get('ordered_at')}")
+            else:
+                self.log_result("PUT /purchase-orders/{id} updates status to 'ordered'", False,
+                               f"Status {resp.status_code}: {resp.text}")
+            
+            # Get current stock before receiving
+            resolve_resp = requests.post(f"{BASE_URL}/resolve", 
+                                        json={"barcode": "TEST_PO_ITEM"}, headers=headers)
+            stock_before = 0
+            if resolve_resp.status_code == 200:
+                resolve_data = resolve_resp.json()
+                if resolve_data.get("found"):
+                    stock_before = resolve_data.get("total", 0)
+            
+            # Receive PO
+            resp = requests.post(f"{BASE_URL}/purchase-orders/{po_id}/receive", headers=headers)
+            passed = resp.status_code == 200
+            if passed:
+                data = resp.json()
+                is_received = data.get("status") == "received"
+                has_received_at = bool(data.get("received_at"))
+                self.log_result("POST /purchase-orders/{id}/receive marks as received", is_received,
+                               f"Status: {data.get('status')}")
+                self.log_result("Status='received' sets received_at timestamp", has_received_at,
+                               f"received_at: {data.get('received_at')}")
+                
+                # Verify stock increased
+                resolve_resp = requests.post(f"{BASE_URL}/resolve", 
+                                            json={"barcode": "TEST_PO_ITEM"}, headers=headers)
+                if resolve_resp.status_code == 200:
+                    resolve_data = resolve_resp.json()
+                    stock_after = resolve_data.get("total", 0)
+                    stock_increased = stock_after == stock_before + 10
+                    self.log_result("Receiving PO adds ordered qty to stock", stock_increased,
+                                   f"Stock before: {stock_before}, after: {stock_after}, expected increase: 10")
+            else:
+                self.log_result("POST /purchase-orders/{id}/receive marks as received", False,
+                               f"Status {resp.status_code}: {resp.text}")
+            
+            # Delete PO
+            resp = requests.delete(f"{BASE_URL}/purchase-orders/{po_id}", headers=headers)
+            passed = resp.status_code == 200
+            if passed:
+                data = resp.json()
+                passed = data.get("ok") == True
+                self.log_result("DELETE /purchase-orders/{id} removes PO", passed,
+                               f"ok: {data.get('ok')}")
+                
+                # Verify deleted
+                resp = requests.get(f"{BASE_URL}/purchase-orders/{po_id}", headers=headers)
+                is_404 = resp.status_code == 404
+                self.log_result("Deleted PO returns 404", is_404,
+                               f"Status: {resp.status_code}")
+            else:
+                self.log_result("DELETE /purchase-orders/{id} removes PO", False,
+                               f"Status {resp.status_code}: {resp.text}")
+    
+    def test_settings_digest(self):
+        """Test Settings and Email Digest"""
+        print("\n=== Testing Settings & Email Digest ===")
+        
+        admin_headers = {"Authorization": f"Bearer {self.admin_token}"}
+        tech_headers = {"Authorization": f"Bearer {self.tech_token}"}
+        
+        # GET /settings
+        resp = requests.get(f"{BASE_URL}/settings", headers=admin_headers)
+        passed = resp.status_code == 200
+        if passed:
+            data = resp.json()
+            has_fields = all(k in data for k in ["digest_recipient", "digest_time"])
+            self.log_result("GET /settings returns digest settings", has_fields,
+                           f"Keys: {list(data.keys())}")
+            
+            # Check default values
+            default_recipient = data.get("digest_recipient") == "supervisor@lab.com"
+            self.log_result("Settings has default digest_recipient", default_recipient,
+                           f"Recipient: {data.get('digest_recipient')}")
+        else:
+            self.log_result("GET /settings returns digest settings", False,
+                           f"Status {resp.status_code}: {resp.text}")
+        
+        # PUT /settings (admin)
+        new_settings = {
+            "digest_recipient": "test@lab.com",
+            "digest_time": "10:00"
+        }
+        resp = requests.put(f"{BASE_URL}/settings", json=new_settings, headers=admin_headers)
+        passed = resp.status_code == 200
+        if passed:
+            data = resp.json()
+            updated = (data.get("digest_recipient") == "test@lab.com" and 
+                      data.get("digest_time") == "10:00")
+            self.log_result("PUT /settings (admin) updates settings", updated,
+                           f"Recipient: {data.get('digest_recipient')}, Time: {data.get('digest_time')}")
+        else:
+            self.log_result("PUT /settings (admin) updates settings", False,
+                           f"Status {resp.status_code}: {resp.text}")
+        
+        # PUT /settings (tech) - should get 403
+        resp = requests.put(f"{BASE_URL}/settings", json=new_settings, headers=tech_headers)
+        passed = resp.status_code == 403
+        self.log_result("PUT /settings (tech) returns 403", passed,
+                       f"Status {resp.status_code}")
+        
+        # GET /digest
+        resp = requests.get(f"{BASE_URL}/digest", headers=admin_headers)
+        passed = resp.status_code == 200
+        if passed:
+            data = resp.json()
+            has_fields = all(k in data for k in ["recipient", "schedule", "low_stock", "expiring", "summary"])
+            self.log_result("GET /digest returns digest preview", has_fields,
+                           f"Keys: {list(data.keys())}")
+            
+            # Check summary structure
+            summary = data.get("summary", {})
+            has_summary = all(k in summary for k in ["low_stock_count", "expiring_count", "expired_count"])
+            self.log_result("Digest summary has required counts", has_summary,
+                           f"Summary keys: {list(summary.keys())}")
+        else:
+            self.log_result("GET /digest returns digest preview", False,
+                           f"Status {resp.status_code}: {resp.text}")
+        
+        # POST /digest/send (preview only)
+        resp = requests.post(f"{BASE_URL}/digest/send", headers=admin_headers)
+        passed = resp.status_code == 200
+        if passed:
+            data = resp.json()
+            is_preview = (data.get("ok") == False and 
+                         data.get("provider_configured") == False)
+            self.log_result("POST /digest/send returns preview-only response", is_preview,
+                           f"ok: {data.get('ok')}, provider_configured: {data.get('provider_configured')}")
+            
+            has_message = bool(data.get("message"))
+            self.log_result("Digest send includes preview message", has_message,
+                           f"Message present: {has_message}")
+        else:
+            self.log_result("POST /digest/send returns preview-only response", False,
+                           f"Status {resp.status_code}: {resp.text}")
         
     def run_all_tests(self):
         """Run all test suites"""
@@ -633,6 +922,11 @@ TEST_CSV_002,CSV Item 2,20,LOT2,2027-01-15,10,Shelf B,Fridge,25.00,unit"""
         # Admin features
         self.test_user_management()
         self.test_technicians_locations()
+        
+        # NEW FEATURES
+        self.test_usage_trends()
+        self.test_purchase_orders()
+        self.test_settings_digest()
         
         return True
         

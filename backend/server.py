@@ -695,6 +695,291 @@ async def backup(token: Optional[str] = None):
     )
 
 
+# ----------------------- Usage trends -----------------------
+@api.get("/usage-trends")
+async def usage_trends(days: int = 30, user: dict = Depends(get_current_user)):
+    cutoff_dt = datetime.now(timezone.utc) - timedelta(days=days)
+    cutoff = cutoff_dt.isoformat()
+    logs = await db.log.find(
+        {"action": "use", "ts": {"$gte": cutoff}}, {"_id": 0}
+    ).to_list(1000000)
+    items = await db.items.find({}, {"_id": 0, "id": 1, "name": 1, "unit": 1}).to_list(100000)
+    name_map = {i["id"]: i for i in items}
+
+    # daily totals
+    daily = {}
+    by_item = {}
+    for l in logs:
+        ts = l.get("ts", "")
+        day = ts[:10] if ts else ""
+        qty = l.get("qty", 0) or 0
+        if day:
+            daily[day] = daily.get(day, 0) + qty
+        iid = l.get("item_id")
+        if iid:
+            by_item[iid] = by_item.get(iid, 0) + qty
+
+    # build continuous date axis
+    daily_series = []
+    for i in range(days, -1, -1):
+        d = (datetime.now(timezone.utc) - timedelta(days=i)).strftime("%Y-%m-%d")
+        daily_series.append({"date": d, "qty": round(daily.get(d, 0), 3)})
+
+    top = []
+    for iid, qty in by_item.items():
+        info = name_map.get(iid, {})
+        top.append({
+            "item_id": iid, "name": info.get("name", "—"),
+            "unit": info.get("unit", "unit"), "qty": round(qty, 3),
+        })
+    top.sort(key=lambda x: x["qty"], reverse=True)
+
+    total_used = round(sum(daily.values()), 3)
+    return {
+        "days": days,
+        "daily": daily_series,
+        "by_item": top[:15],
+        "total_used": total_used,
+        "active_reagents": len([t for t in top if t["qty"] > 0]),
+    }
+
+
+# ----------------------- Purchase Orders -----------------------
+class POLine(BaseModel):
+    item_id: str = ""
+    barcode: str = ""
+    name: str
+    unit: str = "unit"
+    on_hand: float = 0
+    min_stock: float = 0
+    order_qty: float = 0
+    cost: float = 0
+
+
+class POCreate(BaseModel):
+    supplier: str = ""
+    notes: str = ""
+    lines: List[POLine]
+
+
+class POUpdate(BaseModel):
+    supplier: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[str] = None
+    lines: Optional[List[POLine]] = None
+
+
+async def _next_po_number() -> str:
+    count = await db.purchase_orders.count_documents({})
+    return f"PO-{datetime.now(timezone.utc).strftime('%Y%m')}-{count + 1:04d}"
+
+
+@api.post("/purchase-orders")
+async def create_po(req: POCreate, user: dict = Depends(get_current_user)):
+    lines = [l.model_dump() for l in req.lines]
+    doc = {
+        "id": new_id(),
+        "po_number": await _next_po_number(),
+        "supplier": req.supplier,
+        "notes": req.notes,
+        "status": "draft",
+        "lines": lines,
+        "total_cost": round(sum((l.get("order_qty", 0) or 0) * (l.get("cost", 0) or 0) for l in lines), 2),
+        "created_by": user["name"],
+        "created_at": now_iso(),
+        "ordered_at": "",
+        "received_at": "",
+    }
+    await db.purchase_orders.insert_one(dict(doc))
+    return doc
+
+
+@api.get("/purchase-orders")
+async def list_pos(user: dict = Depends(get_current_user)):
+    pos = await db.purchase_orders.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return {"purchase_orders": pos}
+
+
+@api.get("/purchase-orders/{po_id}")
+async def get_po(po_id: str, user: dict = Depends(get_current_user)):
+    po = await db.purchase_orders.find_one({"id": po_id}, {"_id": 0})
+    if not po:
+        raise HTTPException(status_code=404, detail="PO not found")
+    return po
+
+
+@api.put("/purchase-orders/{po_id}")
+async def update_po(po_id: str, req: POUpdate, user: dict = Depends(get_current_user)):
+    po = await db.purchase_orders.find_one({"id": po_id})
+    if not po:
+        raise HTTPException(status_code=404, detail="PO not found")
+    upd = {}
+    if req.supplier is not None:
+        upd["supplier"] = req.supplier
+    if req.notes is not None:
+        upd["notes"] = req.notes
+    if req.lines is not None:
+        lines = [l.model_dump() for l in req.lines]
+        upd["lines"] = lines
+        upd["total_cost"] = round(sum((l.get("order_qty", 0) or 0) * (l.get("cost", 0) or 0) for l in lines), 2)
+    if req.status is not None:
+        if req.status not in ("draft", "ordered", "received", "cancelled"):
+            raise HTTPException(status_code=400, detail="Invalid status")
+        upd["status"] = req.status
+        if req.status == "ordered":
+            upd["ordered_at"] = now_iso()
+        if req.status == "received":
+            upd["received_at"] = now_iso()
+    await db.purchase_orders.update_one({"id": po_id}, {"$set": upd})
+    updated = await db.purchase_orders.find_one({"id": po_id}, {"_id": 0})
+    return updated
+
+
+@api.post("/purchase-orders/{po_id}/receive")
+async def receive_po(po_id: str, user: dict = Depends(get_current_user)):
+    """Mark a PO as received and add its ordered quantities into stock."""
+    po = await db.purchase_orders.find_one({"id": po_id})
+    if not po:
+        raise HTTPException(status_code=404, detail="PO not found")
+    if po.get("status") == "received":
+        raise HTTPException(status_code=400, detail="PO already received")
+    for l in po.get("lines", []):
+        qty = l.get("order_qty", 0) or 0
+        if qty <= 0 or not l.get("barcode"):
+            continue
+        await do_stock_in(
+            StockInReq(barcode=l["barcode"], qty=qty, name=l.get("name"),
+                       unit=l.get("unit", "unit"), cost=l.get("cost", 0)),
+            technician=user["name"],
+        )
+    await db.purchase_orders.update_one(
+        {"id": po_id}, {"$set": {"status": "received", "received_at": now_iso()}}
+    )
+    updated = await db.purchase_orders.find_one({"id": po_id}, {"_id": 0})
+    return updated
+
+
+@api.delete("/purchase-orders/{po_id}")
+async def delete_po(po_id: str, user: dict = Depends(get_current_user)):
+    await db.purchase_orders.delete_one({"id": po_id})
+    return {"ok": True}
+
+
+# ----------------------- Settings + Email Digest -----------------------
+DEFAULT_SETTINGS = {
+    "id": "app",
+    "digest_recipient": "supervisor@lab.com",
+    "digest_time": "09:00",
+    "digest_timezone": "Asia/Kolkata (IST)",
+    "email_provider": "",  # empty = not configured
+}
+
+
+class SettingsReq(BaseModel):
+    digest_recipient: Optional[str] = None
+    digest_time: Optional[str] = None
+    digest_timezone: Optional[str] = None
+
+
+async def _get_settings() -> dict:
+    s = await db.settings.find_one({"id": "app"}, {"_id": 0})
+    if not s:
+        await db.settings.insert_one(dict(DEFAULT_SETTINGS))
+        return dict(DEFAULT_SETTINGS)
+    merged = {**DEFAULT_SETTINGS, **s}
+    return merged
+
+
+@api.get("/settings")
+async def get_settings(user: dict = Depends(get_current_user)):
+    return await _get_settings()
+
+
+@api.put("/settings")
+async def update_settings(req: SettingsReq, admin: dict = Depends(require_admin)):
+    upd = {k: v for k, v in req.model_dump().items() if v is not None}
+    if upd:
+        await db.settings.update_one({"id": "app"}, {"$set": upd}, upsert=True)
+    return await _get_settings()
+
+
+async def _build_digest() -> dict:
+    """Compose the daily digest payload (low stock + expiring)."""
+    items = await db.items.find({}, {"_id": 0}).to_list(100000)
+    all_lots = await db.lots.find({}, {"_id": 0}).to_list(1000000)
+    lots_by_item = {}
+    for l in all_lots:
+        lots_by_item.setdefault(l["item_id"], []).append(l)
+
+    low_stock = []
+    expiring = []
+    for it in items:
+        lots = lots_by_item.get(it["id"], [])
+        total = sum(l.get("qty", 0) for l in lots)
+        if it.get("min_stock", 0) > 0 and total < it["min_stock"]:
+            low_stock.append({
+                "name": it["name"], "barcode": it["barcode"], "on_hand": total,
+                "min_stock": it["min_stock"], "unit": it.get("unit", "unit"),
+                "location": it.get("location", ""),
+                "shortfall": round(it["min_stock"] - total, 3),
+            })
+        for l in lots:
+            d = days_until(l.get("expiry", ""))
+            if d is not None and d <= 90 and l.get("qty", 0) > 0:
+                expiring.append({
+                    "name": it["name"], "barcode": it["barcode"], "lot": l.get("lot", ""),
+                    "expiry": l.get("expiry", ""), "days_left": d, "qty": l.get("qty", 0),
+                    "unit": it.get("unit", "unit"), "location": it.get("location", ""),
+                })
+    low_stock.sort(key=lambda x: x["shortfall"], reverse=True)
+    expiring.sort(key=lambda x: x["days_left"])
+    settings = await _get_settings()
+    return {
+        "generated_at": now_iso(),
+        "recipient": settings.get("digest_recipient"),
+        "schedule": f"{settings.get('digest_time')} {settings.get('digest_timezone')}",
+        "low_stock": low_stock,
+        "expiring": expiring,
+        "summary": {
+            "low_stock_count": len(low_stock),
+            "expiring_count": len(expiring),
+            "expired_count": len([e for e in expiring if e["days_left"] < 0]),
+        },
+    }
+
+
+@api.get("/digest")
+async def get_digest(user: dict = Depends(get_current_user)):
+    return await _build_digest()
+
+
+@api.post("/digest/send")
+async def send_digest(user: dict = Depends(get_current_user)):
+    """Placeholder send. Email provider not configured yet — records the attempt only."""
+    settings = await _get_settings()
+    digest = await _build_digest()
+    record = {
+        "id": new_id(),
+        "ts": now_iso(),
+        "recipient": settings.get("digest_recipient"),
+        "sent_by": user["name"],
+        "provider_configured": bool(settings.get("email_provider")),
+        "summary": digest["summary"],
+        "status": "queued_no_provider" if not settings.get("email_provider") else "sent",
+    }
+    await db.digest_log.insert_one(dict(record))
+    if not settings.get("email_provider"):
+        return {
+            "ok": False,
+            "provider_configured": False,
+            "message": "Email provider not configured yet — digest generated as a preview only. Wire SendGrid/SMTP to enable real sending.",
+            "recipient": settings.get("digest_recipient"),
+            "summary": digest["summary"],
+        }
+    return {"ok": True, "provider_configured": True, "recipient": settings.get("digest_recipient"),
+            "summary": digest["summary"]}
+
+
 # ----------------------- Startup: seed + indexes -----------------------
 @app.on_event("startup")
 async def startup():

@@ -108,6 +108,15 @@ code, .font-mono {
 .thin-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
 .thin-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
 
+/* print: only show .printable content */
+@media print {
+    body * { visibility: hidden !important; }
+    .printable, .printable * { visibility: visible !important; }
+    .printable { position: absolute !important; left: 0; top: 0; width: 100%; padding: 12px; }
+    .no-print { display: none !important; }
+    @page { margin: 12mm; }
+}
+
 @layer base {
     [data-debug-wrapper="true"] {
         display: contents !important;

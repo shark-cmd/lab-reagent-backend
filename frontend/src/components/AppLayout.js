@@ -8,6 +8,9 @@ import {
   LayoutDashboard,
   History as HistoryIcon,
   Users as UsersIcon,
+  ShoppingCart,
+  Tags,
+  TrendingUp,
   LogOut,
   Menu,
   FlaskConical,
@@ -17,6 +20,9 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { to: "/scan", label: "Scan", icon: ScanLine, testid: "nav-scan" },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, testid: "nav-dashboard" },
+  { to: "/purchase-orders", label: "Purchase Orders", icon: ShoppingCart, testid: "nav-purchase-orders" },
+  { to: "/labels", label: "Labels", icon: Tags, testid: "nav-labels" },
+  { to: "/reports", label: "Reports", icon: TrendingUp, testid: "nav-reports" },
   { to: "/history", label: "Audit Log", icon: HistoryIcon, testid: "nav-history" },
   { to: "/users", label: "Users", icon: UsersIcon, testid: "nav-users", adminOnly: true },
 ];

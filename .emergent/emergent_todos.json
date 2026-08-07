@@ -1,22 +1,30 @@
 [
   {
-    "content": "Phase 1: Core POC (FEFO, auto-register, append-only log) - validated",
+    "content": "Backend: Usage trends endpoint (daily consumption + per-reagent totals)",
     "status": "completed"
   },
   {
-    "content": "Phase 2: Design guidelines + Full backend API + Auth",
+    "content": "Backend: Purchase Orders model + CRUD (create from reorder, mark ordered/received)",
     "status": "completed"
   },
   {
-    "content": "Phase 2: Full React frontend (Login, Scan 4-modes + camera, Dashboard, History, Users)",
+    "content": "Backend: Digest endpoint + settings (recipient, schedule) — preview only, no provider",
     "status": "completed"
   },
   {
-    "content": "Phase 2: End-to-End Testing (backend 38/38, frontend 14/14 - all user stories passed)",
+    "content": "Frontend: Labels page (item barcodes + LOC shelf labels, printable via jsbarcode)",
     "status": "completed"
   },
   {
-    "content": "Phase 3: Backups/snapshots + CSV export/import + hardening (implemented & tested)",
+    "content": "Frontend: Purchase Orders page (create from reorder, list, printable PO, mark ordered)",
     "status": "completed"
+  },
+  {
+    "content": "Frontend: Reports page (Usage Trends chart + Email Digest preview/settings)",
+    "status": "completed"
+  },
+  {
+    "content": "Wire nav + routes; test all new features via testing agent",
+    "status": "in_progress"
   }
 ]
