@@ -23,6 +23,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { StatusBadge, expiryVariant } from "@/components/StatusBadge";
+import { HelpHint, InfoBanner } from "@/components/HelpHint";
 import {
   Wallet,
   AlertTriangle,
@@ -177,6 +178,12 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-5">
+      <InfoBanner id="dashboard" title="Reading this dashboard:" testid="dashboard-info-banner">
+        The cards summarise your whole store. <b>Reorder</b> lists items that dropped below their minimum stock,
+        <b> Expiring</b> shows lots within 90 days of expiry (colour-coded 30/60/90), and <b>All items</b> lets you
+        search and fine-tune each item (click the pencil to edit min-stock, cost, location). Use <b>Import CSV</b> or the
+        <b> Bulk Add</b> page to load your existing register.
+      </InfoBanner>
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="font-heading text-2xl font-bold text-slate-900">Dashboard</h1>

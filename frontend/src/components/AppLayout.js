@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   ScanLine,
   LayoutDashboard,
+  Rows3,
   History as HistoryIcon,
   Users as UsersIcon,
   ShoppingCart,
@@ -19,6 +20,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { to: "/scan", label: "Scan", icon: ScanLine, testid: "nav-scan" },
+  { to: "/bulk-add", label: "Bulk Add", icon: Rows3, testid: "nav-bulk-add" },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, testid: "nav-dashboard" },
   { to: "/purchase-orders", label: "Purchase Orders", icon: ShoppingCart, testid: "nav-purchase-orders" },
   { to: "/labels", label: "Labels", icon: Tags, testid: "nav-labels" },

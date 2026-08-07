@@ -1,26 +1,22 @@
 [
   {
-    "content": "Backend: PO PDF + supplier_email + email(preview) endpoint",
+    "content": "Backend: make /receive-commit fault-tolerant + qty default",
     "status": "completed"
   },
   {
-    "content": "Backend: Expiry Forecast endpoint",
+    "content": "Frontend: HelpHint tooltip + InfoBanner components",
     "status": "completed"
   },
   {
-    "content": "Frontend: PO page - supplier email, Download PDF + Email supplier",
+    "content": "Frontend: Bulk Add page (editable grid, paste-from-Excel, validation, commit)",
     "status": "completed"
   },
   {
-    "content": "Frontend: Reports - Expiry Forecast tab",
+    "content": "Frontend: guidance hints across Scan, Dashboard, Bulk Add, PO, Labels, Reports",
     "status": "completed"
   },
   {
-    "content": "Frontend: Labels - preset sheet sizes (Avery/thermal)",
-    "status": "completed"
-  },
-  {
-    "content": "Tested all 3 new features via testing agent (100% pass)",
-    "status": "completed"
+    "content": "Wire nav + route; test bulk add + hints via testing agent",
+    "status": "in_progress"
   }
 ]

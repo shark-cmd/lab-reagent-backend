@@ -214,7 +214,7 @@ class ImportReq(BaseModel):
 
 class ReceiveItem(BaseModel):
     barcode: str
-    qty: float
+    qty: float = 0
     lot: str = ""
     expiry: str = ""
     name: Optional[str] = None
@@ -390,11 +390,22 @@ async def stock_in_route(req: StockInReq, user: dict = Depends(get_current_user)
 
 @api.post("/receive-commit")
 async def receive_commit(req: ReceiveCommitReq, user: dict = Depends(get_current_user)):
-    results = []
-    for it in req.items:
-        r = await do_stock_in(StockInReq(**it.model_dump()), technician=user["name"])
-        results.append(r)
-    return {"ok": True, "count": len(results), "results": results}
+    imported = 0
+    registered = 0
+    errors = []
+    for idx, it in enumerate(req.items, start=1):
+        try:
+            if not (it.barcode or "").strip():
+                errors.append(f"Row {idx}: missing barcode")
+                continue
+            r = await do_stock_in(StockInReq(**it.model_dump()), technician=user["name"])
+            imported += 1
+            if r.get("registered"):
+                registered += 1
+        except Exception as e:
+            errors.append(f"Row {idx}: {str(e)}")
+    return {"ok": True, "imported": imported, "registered": registered,
+            "count": imported, "errors": errors}
 
 
 @api.post("/use")

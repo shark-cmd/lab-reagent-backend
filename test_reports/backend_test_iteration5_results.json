@@ -1,0 +1,84 @@
+{
+  "timestamp": "2026-08-07T09:02:37.902733",
+  "total_tests": 15,
+  "passed": 15,
+  "failed": 0,
+  "success_rate": "100.0%",
+  "tests": [
+    {
+      "test": "POST /api/receive-commit returns 200 (not 422) with mixed valid/invalid items",
+      "passed": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "Response has ok=true",
+      "passed": true,
+      "details": "ok=True"
+    },
+    {
+      "test": "Response has 'imported' field",
+      "passed": true,
+      "details": "imported=2"
+    },
+    {
+      "test": "Response has 'registered' field",
+      "passed": true,
+      "details": "registered=2"
+    },
+    {
+      "test": "Response has 'count' field",
+      "passed": true,
+      "details": "count=2"
+    },
+    {
+      "test": "Response has 'errors' field",
+      "passed": true,
+      "details": "errors=['Row 2: missing barcode']"
+    },
+    {
+      "test": "Imported count is 2 (valid items only)",
+      "passed": true,
+      "details": "imported=2, expected=2"
+    },
+    {
+      "test": "Errors array contains at least one error for bad row",
+      "passed": true,
+      "details": "errors=['Row 2: missing barcode']"
+    },
+    {
+      "test": "Error message mentions 'barcode'",
+      "passed": true,
+      "details": "First error: Row 2: missing barcode"
+    },
+    {
+      "test": "Valid item 1 (QA-VALID-1-090237) was created and can be resolved",
+      "passed": true,
+      "details": "found=True"
+    },
+    {
+      "test": "Valid item 1 has correct quantity",
+      "passed": true,
+      "details": "total=10.0, expected=10"
+    },
+    {
+      "test": "Valid item 2 (QA-VALID-2-090237) was created and can be resolved",
+      "passed": true,
+      "details": "found=True"
+    },
+    {
+      "test": "Valid item 2 has correct quantity",
+      "passed": true,
+      "details": "total=20.0, expected=20"
+    },
+    {
+      "test": "POST /api/receive-commit with all valid items returns 200",
+      "passed": true,
+      "details": "Status: 200"
+    },
+    {
+      "test": "All valid items imported with no errors",
+      "passed": true,
+      "details": "imported=2, errors=0"
+    }
+  ]
+}

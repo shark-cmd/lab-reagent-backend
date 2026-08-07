@@ -19,6 +19,7 @@ import {
 import {
   TrendingUp, Mail, Send, Save, AlertTriangle, CalendarClock, Loader2, Info, Trash2, TriangleAlert,
 } from "lucide-react";
+import { InfoBanner } from "@/components/HelpHint";
 import { toast } from "sonner";
 
 const BAR_COLORS = ["#0E7490", "#2563EB", "#0B5CAD", "#1F7A4D", "#B45309", "#0E7490", "#2563EB", "#0B5CAD", "#1F7A4D", "#B45309"];
@@ -112,6 +113,11 @@ export default function Reports() {
 
   return (
     <div className="space-y-5">
+      <InfoBanner id="reports" title="What's in Reports:" testid="reports-info-banner">
+        <b>Usage trends</b> shows how fast reagents are consumed so you can predict reorders. <b>Expiry forecast</b> flags stock that will
+        likely expire before it's used (so you can slow ordering or redistribute). <b>Email digest</b> is a daily summary of low-stock and
+        expiring items for your supervisor.
+      </InfoBanner>
       <div>
         <h1 className="font-heading text-2xl font-bold text-slate-900 flex items-center gap-2">
           <TrendingUp className="h-6 w-6 text-[color:var(--ls-primary)]" /> Reports

@@ -13,6 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/StatusBadge";
+import { InfoBanner } from "@/components/HelpHint";
 import {
   ShoppingCart, Plus, Printer, Trash2, PackageCheck, Send, RefreshCw, Loader2, FileText, FileDown, Mail,
 } from "lucide-react";
@@ -181,6 +182,11 @@ export default function PurchaseOrders() {
 
   return (
     <div className="space-y-5">
+      <InfoBanner id="po" title="Purchase orders in 3 steps:" testid="po-info-banner">
+        Click <b>New PO from reorder</b> to auto-fill a draft from items that need restocking (edit quantities, cost and supplier as needed).
+        <b> Mark ordered</b> once you've sent it to the supplier, then <b>Receive into stock</b> when the delivery arrives — that adds the quantities back into inventory.
+        You can also download a <b>PDF</b> or email it to the supplier.
+      </InfoBanner>
       <div className="flex items-center justify-between flex-wrap gap-3 no-print">
         <div>
           <h1 className="font-heading text-2xl font-bold text-slate-900 flex items-center gap-2">

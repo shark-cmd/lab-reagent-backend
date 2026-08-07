@@ -6,6 +6,7 @@ import AppLayout from "@/components/AppLayout";
 import Login from "@/pages/Login";
 import ScanPage from "@/pages/ScanPage";
 import Dashboard from "@/pages/Dashboard";
+import BulkAdd from "@/pages/BulkAdd";
 import History from "@/pages/History";
 import Users from "@/pages/Users";
 import Labels from "@/pages/Labels";
@@ -35,6 +36,7 @@ function App() {
               <Route path="/" element={<Navigate to="/scan" replace />} />
               <Route path="/scan" element={<ScanPage />} />
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/bulk-add" element={<BulkAdd />} />
               <Route path="/purchase-orders" element={<PurchaseOrders />} />
               <Route path="/labels" element={<Labels />} />
               <Route path="/reports" element={<Reports />} />

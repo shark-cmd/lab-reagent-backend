@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import CameraScanner from "@/components/CameraScanner";
+import { HelpHint, InfoBanner } from "@/components/HelpHint";
 import {
   MinusCircle,
   PackagePlus,
@@ -299,6 +300,13 @@ export default function ScanPage() {
 
   return (
     <div className="space-y-5">
+      <InfoBanner id="scan" title="How scanning works:" testid="scan-info-banner">
+        Pick a mode, then scan or type a barcode and press Enter. <b>Use</b> removes stock (oldest-expiry first),
+        <b> Receive</b> adds incoming stock to a queue you commit together, <b>Count</b> sets a physical stocktake number,
+        and <b>Move</b> changes an item's location. Scanning a <span className="font-mono">LOC:</span> shelf label sets the active location.
+        Unknown barcodes pop up a quick registration form.
+      </InfoBanner>
+
       {/* Header */}
       <div className="rounded-2xl scan-accent border border-[color:var(--ls-border)] bg-white p-5 sm:p-6">
         <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -385,7 +393,10 @@ export default function ScanPage() {
             <div className="grid sm:grid-cols-3 gap-3">
               {showQty && (
                 <div className="space-y-1.5">
-                  <Label htmlFor="qty">{mode === "count" ? "Counted qty" : "Quantity"}</Label>
+                  <Label htmlFor="qty" className="flex items-center gap-1">
+                    {mode === "count" ? "Counted qty" : "Quantity"}
+                    <HelpHint text={mode === "count" ? "The physical amount you counted on the shelf. LabStock adjusts stock to match this number." : mode === "use" ? "How many units you're taking out now." : "How many units you're adding."} />
+                  </Label>
                   <Input
                     id="qty"
                     data-testid="scan-qty-input"
@@ -412,7 +423,9 @@ export default function ScanPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="expiry">Expiry</Label>
+                    <Label htmlFor="expiry" className="flex items-center gap-1">
+                      Expiry <HelpHint text="Expiry date of this lot. LabStock consumes soonest-to-expire stock first (FEFO) and warns you before it expires." />
+                    </Label>
                     <Input
                       id="expiry"
                       data-testid="scan-expiry-input"

@@ -11,6 +11,7 @@ import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
 import Barcode from "@/components/Barcode";
+import { InfoBanner } from "@/components/HelpHint";
 import { Printer, Tags, MapPin, Search, CheckSquare, Square } from "lucide-react";
 import { toast } from "sonner";
 
@@ -74,6 +75,11 @@ export default function Labels() {
 
   return (
     <div className="space-y-5">
+      <InfoBanner id="labels" title="Printing labels:" testid="labels-info-banner">
+        Choose a <b>Label size</b> that matches your sticker paper (Avery sheets or thermal rolls). On <b>Item labels</b>, tick the products you
+        want and hit Print. On <b>Location labels</b>, type one shelf/fridge per line — these print as <span className="font-mono">LOC:</span> barcodes
+        that set the active location when scanned on the Scan page. Tip: print on plain paper first to check alignment.
+      </InfoBanner>
       <div className="flex items-center justify-between flex-wrap gap-3 no-print">
         <div>
           <h1 className="font-heading text-2xl font-bold text-slate-900 flex items-center gap-2">
