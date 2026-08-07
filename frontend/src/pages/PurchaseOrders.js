@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import {
-  ShoppingCart, Plus, Printer, Trash2, PackageCheck, Send, RefreshCw, Loader2, FileText,
+  ShoppingCart, Plus, Printer, Trash2, PackageCheck, Send, RefreshCw, Loader2, FileText, FileDown, Mail,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -29,6 +29,7 @@ export default function PurchaseOrders() {
   const [createOpen, setCreateOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [supplier, setSupplier] = useState("");
+  const [supplierEmail, setSupplierEmail] = useState("");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState([]);
   const [viewPo, setViewPo] = useState(null);
@@ -60,6 +61,7 @@ export default function PurchaseOrders() {
       }));
       setLines(suggested);
       setSupplier("");
+      setSupplierEmail("");
       setNotes("");
       setCreateOpen(true);
       if (suggested.length === 0) toast.info("No reorder alerts — you can still add lines manually below.");
@@ -87,6 +89,7 @@ export default function PurchaseOrders() {
     try {
       const payload = {
         supplier,
+        supplier_email: supplierEmail,
         notes,
         lines: valid.map((l) => ({
           item_id: l.item_id || "", barcode: l.barcode || "", name: l.name,
@@ -143,6 +146,37 @@ export default function PurchaseOrders() {
 
   const printPO = () => {
     window.print();
+  };
+
+  const downloadPDF = async (po) => {
+    try {
+      const token = localStorage.getItem("ls_token");
+      const res = await api.get(`/purchase-orders/${po.id}/pdf`, { params: { token }, responseType: "blob" });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${po.po_number}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("PDF downloaded");
+    } catch {
+      toast.error("PDF download failed");
+    }
+  };
+
+  const emailSupplier = async (po) => {
+    try {
+      const { data } = await api.post(`/purchase-orders/${po.id}/email`);
+      if (data.provider_configured) {
+        toast.success(`PO emailed to ${data.recipient}`);
+      } else {
+        toast.info(data.message, { duration: 6000 });
+      }
+    } catch (e) {
+      toast.error("Email failed");
+    }
   };
 
   return (
@@ -208,10 +242,14 @@ export default function PurchaseOrders() {
           <DialogHeader>
             <DialogTitle>New purchase order</DialogTitle>
           </DialogHeader>
-          <div className="grid sm:grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label>Supplier</Label>
               <Input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="e.g. Acme Diagnostics" data-testid="po-supplier-input" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Supplier email</Label>
+              <Input type="email" value={supplierEmail} onChange={(e) => setSupplierEmail(e.target.value)} placeholder="sales@supplier.com" data-testid="po-supplier-email-input" />
             </div>
             <div className="space-y-1.5">
               <Label>Notes</Label>
@@ -292,6 +330,7 @@ export default function PurchaseOrders() {
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm mb-3">
                   <div><span className="text-slate-500">Supplier:</span> <span className="font-medium">{viewPo.supplier || "—"}</span></div>
+                  <div><span className="text-slate-500">Email:</span> {viewPo.supplier_email || "—"}</div>
                   <div><span className="text-slate-500">Created:</span> {fmt(viewPo.created_at)} by {viewPo.created_by}</div>
                   <div><span className="text-slate-500">Ordered:</span> {fmt(viewPo.ordered_at)}</div>
                   <div><span className="text-slate-500">Received:</span> {fmt(viewPo.received_at)}</div>
@@ -335,6 +374,12 @@ export default function PurchaseOrders() {
                 </Button>
                 <Button variant="outline" onClick={printPO} data-testid="po-print-button">
                   <Printer className="h-4 w-4 mr-1.5" /> Print
+                </Button>
+                <Button variant="outline" onClick={() => downloadPDF(viewPo)} data-testid="po-pdf-button">
+                  <FileDown className="h-4 w-4 mr-1.5" /> PDF
+                </Button>
+                <Button variant="outline" onClick={() => emailSupplier(viewPo)} data-testid="po-email-button">
+                  <Mail className="h-4 w-4 mr-1.5" /> Email supplier
                 </Button>
                 {viewPo.status === "draft" && (
                   <Button variant="outline" onClick={() => setStatus(viewPo, "ordered")} data-testid="po-mark-ordered-button">

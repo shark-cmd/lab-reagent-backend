@@ -1,0 +1,109 @@
+{
+  "timestamp": "2026-08-07T08:47:54.159320",
+  "total_tests": 20,
+  "passed": 19,
+  "failed": 1,
+  "success_rate": "95.0%",
+  "tests": [
+    {
+      "test": "Expiry forecast has 'rows' and 'summary' keys",
+      "passed": true,
+      "details": "Keys: ['rows', 'summary']"
+    },
+    {
+      "test": "Summary has at_risk_lots, total_waste_value, high_or_expired",
+      "passed": true,
+      "details": "Summary keys: ['at_risk_lots', 'total_waste_value', 'high_or_expired']"
+    },
+    {
+      "test": "Forecast row has all required fields",
+      "passed": true,
+      "details": "Row keys: ['item_id', 'name', 'barcode', 'unit', 'lot', 'expiry', 'days_to_expiry', 'qty', 'usage_rate', 'days_to_finish_stock', 'projected_waste', 'waste_value', 'risk', 'location']"
+    },
+    {
+      "test": "Expired lot (days_to_expiry < 0) has risk='expired'",
+      "passed": true,
+      "details": "days_to_expiry=-98, risk=expired"
+    },
+    {
+      "test": "Lot with no usage history has risk='no_usage'",
+      "passed": false,
+      "details": "usage_rate=0.0, risk=expired"
+    },
+    {
+      "test": "No usage lot: projected_waste equals full qty",
+      "passed": true,
+      "details": "qty=15.0, projected_waste=15.0"
+    },
+    {
+      "test": "GET /api/purchase-orders/{id}/pdf with token returns 200",
+      "passed": true,
+      "details": "Status 200"
+    },
+    {
+      "test": "PDF response has content-type application/pdf",
+      "passed": true,
+      "details": "Content-Type: application/pdf"
+    },
+    {
+      "test": "PDF response starts with '%PDF' signature",
+      "passed": true,
+      "details": "First 4 bytes: b'%PDF', Size: 2409 bytes"
+    },
+    {
+      "test": "GET /api/purchase-orders/{id}/pdf without token returns 401",
+      "passed": true,
+      "details": "Status 401"
+    },
+    {
+      "test": "GET /api/purchase-orders/{id}/pdf with invalid token returns 401",
+      "passed": true,
+      "details": "Status 401"
+    },
+    {
+      "test": "Email response has ok=false (preview-only)",
+      "passed": true,
+      "details": "ok=False"
+    },
+    {
+      "test": "Email response has provider_configured=false",
+      "passed": true,
+      "details": "provider_configured=False"
+    },
+    {
+      "test": "Email response has correct recipient",
+      "passed": true,
+      "details": "recipient=sales@testsupplier.com"
+    },
+    {
+      "test": "Email response message mentions preview/not configured",
+      "passed": true,
+      "details": "message=Email provider not configured yet \u2014 this would send PO-202608-0003 to sales@testsupplier.com. Wire S"
+    },
+    {
+      "test": "Email PO without supplier_email returns ok=false",
+      "passed": true,
+      "details": "ok=False"
+    },
+    {
+      "test": "Email response asks to add supplier email",
+      "passed": true,
+      "details": "message=No supplier email set on this PO. Add one first, then try again."
+    },
+    {
+      "test": "Created PO returns supplier_email field",
+      "passed": true,
+      "details": "supplier_email=contact@emailtest.com"
+    },
+    {
+      "test": "GET PO returns persisted supplier_email",
+      "passed": true,
+      "details": "supplier_email=contact@emailtest.com"
+    },
+    {
+      "test": "PUT PO updates supplier_email field",
+      "passed": true,
+      "details": "supplier_email=updated@emailtest.com"
+    }
+  ]
+}

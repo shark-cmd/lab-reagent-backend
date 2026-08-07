@@ -17,7 +17,7 @@ import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
 import {
-  TrendingUp, Mail, Send, Save, AlertTriangle, CalendarClock, Loader2, Info,
+  TrendingUp, Mail, Send, Save, AlertTriangle, CalendarClock, Loader2, Info, Trash2, TriangleAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -35,6 +35,17 @@ export default function Reports() {
   const [dtime, setDtime] = useState("");
   const [sending, setSending] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+
+  const [forecast, setForecast] = useState(null);
+
+  const loadForecast = useCallback(async () => {
+    try {
+      const { data } = await api.get("/expiry-forecast");
+      setForecast(data);
+    } catch {
+      toast.error("Failed to load expiry forecast");
+    }
+  }, []);
 
   const loadTrends = useCallback(async () => {
     setLoading(true);
@@ -66,6 +77,9 @@ export default function Reports() {
   useEffect(() => {
     loadDigest();
   }, [loadDigest]);
+  useEffect(() => {
+    loadForecast();
+  }, [loadForecast]);
 
   const saveSettings = async () => {
     setSavingSettings(true);
@@ -108,6 +122,7 @@ export default function Reports() {
       <Tabs defaultValue="trends" className="w-full">
         <TabsList>
           <TabsTrigger value="trends" data-testid="reports-tab-trends">Usage trends</TabsTrigger>
+          <TabsTrigger value="forecast" data-testid="reports-tab-forecast">Expiry forecast</TabsTrigger>
           <TabsTrigger value="digest" data-testid="reports-tab-digest">Email digest</TabsTrigger>
         </TabsList>
 
@@ -176,6 +191,81 @@ export default function Reports() {
                 </ResponsiveContainer>
               </div>
             )}
+          </Card>
+        </TabsContent>
+
+        {/* Expiry forecast */}
+        <TabsContent value="forecast" className="space-y-4">
+          <div className="rounded-lg border border-[#FFD7A8] bg-[#FFF4E6] p-3 flex items-start gap-2 text-sm text-[#B45309]">
+            <TriangleAlert className="h-4 w-4 mt-0.5 shrink-0" />
+            <div>
+              <span className="font-semibold">Waste risk forecast.</span> We project FEFO consumption against each reagent's recent usage rate to flag stock likely to <span className="font-medium">expire before it's used</span> — so you can slow ordering or redistribute it.
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <Card className="p-4 border-[color:var(--ls-border)]" data-testid="forecast-at-risk">
+              <div className="text-xs uppercase tracking-wide text-slate-500">At-risk lots</div>
+              <div className="mt-1 font-heading text-2xl font-bold text-slate-900 tabnum">{forecast?.summary?.at_risk_lots ?? 0}</div>
+              <div className="text-xs text-slate-500">will expire unused</div>
+            </Card>
+            <Card className="p-4 border-[color:var(--ls-border)]" data-testid="forecast-waste-value">
+              <div className="text-xs uppercase tracking-wide text-slate-500">Projected waste value</div>
+              <div className="mt-1 font-heading text-2xl font-bold text-[#B42318] tabnum">${Number(forecast?.summary?.total_waste_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="text-xs text-slate-500">estimated</div>
+            </Card>
+            <Card className="p-4 border-[color:var(--ls-border)]">
+              <div className="text-xs uppercase tracking-wide text-slate-500">High / expired</div>
+              <div className="mt-1 font-heading text-2xl font-bold text-slate-900 tabnum">{forecast?.summary?.high_or_expired ?? 0}</div>
+              <div className="text-xs text-slate-500">act soon</div>
+            </Card>
+          </div>
+
+          <Card className="border-[color:var(--ls-border)] overflow-hidden">
+            <div className="overflow-auto thin-scroll max-h-[480px]">
+              <Table data-testid="forecast-table">
+                <TableHeader className="sticky top-0 z-10">
+                  <TableRow className="bg-[color:var(--ls-surface-2)]">
+                    <TableHead>Item</TableHead>
+                    <TableHead>Lot</TableHead>
+                    <TableHead>Expiry</TableHead>
+                    <TableHead className="text-right">Days to expiry</TableHead>
+                    <TableHead className="text-right">On hand</TableHead>
+                    <TableHead className="text-right">Usage/day</TableHead>
+                    <TableHead className="text-right">Waste qty</TableHead>
+                    <TableHead className="text-right">Waste $</TableHead>
+                    <TableHead>Risk</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(forecast?.rows || []).map((r, i) => {
+                    const rv = r.risk === "expired" || r.risk === "high" ? "expiring30"
+                      : r.risk === "medium" ? "expiring60"
+                      : r.risk === "no_usage" ? "neutral" : "expiring90";
+                    const rlabel = r.risk === "no_usage" ? "No usage" : r.risk.charAt(0).toUpperCase() + r.risk.slice(1);
+                    return (
+                      <TableRow key={i} data-testid="forecast-row">
+                        <TableCell>
+                          <div className="font-medium text-slate-800">{r.name}</div>
+                          <div className="text-[11px] text-slate-500 font-mono">{r.barcode}</div>
+                        </TableCell>
+                        <TableCell className="font-mono text-sm">{r.lot || "—"}</TableCell>
+                        <TableCell className="font-mono text-sm">{r.expiry}</TableCell>
+                        <TableCell className="text-right tabnum">{r.days_to_expiry}</TableCell>
+                        <TableCell className="text-right tabnum">{r.qty} {r.unit}</TableCell>
+                        <TableCell className="text-right tabnum">{r.usage_rate}</TableCell>
+                        <TableCell className="text-right tabnum text-[#B42318] font-medium">{r.projected_waste}</TableCell>
+                        <TableCell className="text-right tabnum">${Number(r.waste_value).toFixed(2)}</TableCell>
+                        <TableCell><StatusBadge variant={rv}>{rlabel}</StatusBadge></TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {(forecast && (forecast.rows || []).length === 0) && (
+                    <TableRow><TableCell colSpan={9} className="text-center text-slate-400 py-8">No waste risk detected — consumption keeps pace with expiries.</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
           </Card>
         </TabsContent>
 

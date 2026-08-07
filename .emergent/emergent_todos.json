@@ -1,30 +1,26 @@
 [
   {
-    "content": "Backend: Usage trends endpoint",
+    "content": "Backend: PO PDF + supplier_email + email(preview) endpoint",
     "status": "completed"
   },
   {
-    "content": "Backend: Purchase Orders CRUD + receive-into-stock",
+    "content": "Backend: Expiry Forecast endpoint",
     "status": "completed"
   },
   {
-    "content": "Backend: Digest endpoint + settings (preview-only)",
+    "content": "Frontend: PO page - supplier email, Download PDF + Email supplier",
     "status": "completed"
   },
   {
-    "content": "Frontend: Labels page (printable barcodes + LOC labels)",
+    "content": "Frontend: Reports - Expiry Forecast tab",
     "status": "completed"
   },
   {
-    "content": "Frontend: Purchase Orders page",
+    "content": "Frontend: Labels - preset sheet sizes (Avery/thermal)",
     "status": "completed"
   },
   {
-    "content": "Frontend: Reports page (Usage Trends + Email Digest)",
-    "status": "completed"
-  },
-  {
-    "content": "Nav + routes wired; all new features tested (100% pass)",
-    "status": "completed"
+    "content": "Test all 3 new features via testing agent",
+    "status": "in_progress"
   }
 ]

@@ -7,15 +7,28 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+} from "@/components/ui/select";
 import Barcode from "@/components/Barcode";
 import { Printer, Tags, MapPin, Search, CheckSquare, Square } from "lucide-react";
 import { toast } from "sonner";
+
+const SIZE_PRESETS = {
+  compact: { label: "Compact grid", w: "2.4in", h: "1.15in", bh: 40, fs: 9, bw: 1.4 },
+  avery5160: { label: "Avery 5160 · 30/sheet (2.625×1in)", w: "2.625in", h: "1in", bh: 32, fs: 8, bw: 1.2 },
+  avery5163: { label: "Avery 5163 · 10/sheet (4×2in)", w: "4in", h: "2in", bh: 66, fs: 13, bw: 2 },
+  thermal2x1: { label: "Thermal 2×1in (single column)", w: "2in", h: "1in", bh: 34, fs: 8, bw: 1.2 },
+  thermal4x6: { label: "Thermal 4×6in (single column)", w: "3.8in", h: "2.4in", bh: 90, fs: 16, bw: 2.4 },
+};
 
 export default function Labels() {
   const [items, setItems] = useState([]);
   const [selected, setSelected] = useState({});
   const [search, setSearch] = useState("");
   const [locText, setLocText] = useState("Cold Room / Fridge 1\nCold Room / Fridge 2\nAmbient Store / Shelf A");
+  const [size, setSize] = useState("compact");
+  const preset = SIZE_PRESETS[size];
 
   const load = useCallback(async () => {
     try {
@@ -68,6 +81,17 @@ export default function Labels() {
           </h1>
           <p className="text-sm text-slate-500">Generate barcoded item &amp; shelf-location labels, ready to print and stick</p>
         </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-slate-500">Label size</span>
+          <Select value={size} onValueChange={setSize}>
+            <SelectTrigger className="w-[260px] h-9" data-testid="label-size-select"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.entries(SIZE_PRESETS).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Tabs defaultValue="items" className="w-full">
@@ -115,12 +139,17 @@ export default function Labels() {
               {selectedItems.length === 0 ? (
                 <p className="text-sm text-slate-400 py-10 text-center no-print">Select items on the left to preview labels.</p>
               ) : (
-                <div className="printable grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="printable flex flex-wrap gap-2" data-testid="item-labels-preview">
                   {selectedItems.map((it) => (
-                    <div key={it.id} className="border border-slate-300 rounded-lg p-2 flex flex-col items-center text-center bg-white break-inside-avoid" data-testid="item-label-card">
-                      <div className="text-[12px] font-semibold text-slate-800 leading-tight mb-1 line-clamp-2">{it.name}</div>
-                      <Barcode value={it.barcode} height={42} />
-                      <div className="text-[10px] text-slate-500 mt-1">{it.location || it.storage || ""}</div>
+                    <div
+                      key={it.id}
+                      className="border border-slate-300 rounded-md p-1.5 flex flex-col items-center justify-center text-center bg-white break-inside-avoid overflow-hidden"
+                      style={{ width: preset.w, height: preset.h }}
+                      data-testid="item-label-card"
+                    >
+                      <div className="font-semibold text-slate-800 leading-tight mb-0.5 line-clamp-2" style={{ fontSize: preset.fs }}>{it.name}</div>
+                      <Barcode value={it.barcode} height={preset.bh} width={preset.bw} fontSize={preset.fs - 1} />
+                      <div className="text-slate-500 mt-0.5" style={{ fontSize: preset.fs - 2 }}>{it.location || it.storage || ""}</div>
                     </div>
                   ))}
                 </div>
@@ -150,13 +179,18 @@ export default function Labels() {
               {locLabels.length === 0 ? (
                 <p className="text-sm text-slate-400 py-10 text-center no-print">Enter location names to preview labels.</p>
               ) : (
-                <div className="printable grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="printable flex flex-wrap gap-2" data-testid="location-labels-preview">
                   {locLabels.map((l, i) => (
-                    <div key={i} className="border border-slate-300 rounded-lg p-2 flex flex-col items-center text-center bg-white break-inside-avoid" data-testid="location-label-card">
-                      <div className="text-[12px] font-semibold text-slate-800 leading-tight mb-1 flex items-center gap-1">
-                        <MapPin className="h-3 w-3" /> {l.name}
+                    <div
+                      key={i}
+                      className="border border-slate-300 rounded-md p-1.5 flex flex-col items-center justify-center text-center bg-white break-inside-avoid overflow-hidden"
+                      style={{ width: preset.w, height: preset.h }}
+                      data-testid="location-label-card"
+                    >
+                      <div className="font-semibold text-slate-800 leading-tight mb-0.5 flex items-center gap-1" style={{ fontSize: preset.fs }}>
+                        <MapPin style={{ width: preset.fs, height: preset.fs }} /> {l.name}
                       </div>
-                      <Barcode value={l.code} height={42} fontSize={10} />
+                      <Barcode value={l.code} height={preset.bh} width={preset.bw} fontSize={preset.fs - 2} />
                     </div>
                   ))}
                 </div>
