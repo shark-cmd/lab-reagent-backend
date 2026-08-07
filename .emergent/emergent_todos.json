@@ -9,19 +9,19 @@
   },
   {
     "content": "Phase 2: Get design guidelines from design_agent",
-    "status": "in_progress"
+    "status": "completed"
   },
   {
     "content": "Phase 2: Full backend API (resolve, stock-in, use, stocktake, move, dashboard, history, import/export, item-update) + Auth",
-    "status": "pending"
+    "status": "completed"
   },
   {
-    "content": "Phase 2: Full React frontend (Login, Scan page w/ 4 modes + camera, Dashboard, History) - clinical theme",
-    "status": "pending"
+    "content": "Phase 2: Full React frontend (Login, Scan page w/ 4 modes + camera, Dashboard, History, Users) - clinical theme",
+    "status": "completed"
   },
   {
     "content": "Phase 2: All user stories covered + End-to-End Testing via testing agent",
-    "status": "pending"
+    "status": "in_progress"
   },
   {
     "content": "Phase 3: Backups/snapshots + hardening + final testing",

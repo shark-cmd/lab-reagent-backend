@@ -1,0 +1,199 @@
+{
+  "timestamp": "2026-08-07T08:12:54.257552",
+  "total_tests": 38,
+  "passed": 38,
+  "failed": 0,
+  "success_rate": 100.0,
+  "results": [
+    {
+      "test": "Admin login with correct password+PIN",
+      "passed": true,
+      "details": "Token received, role=admin"
+    },
+    {
+      "test": "Tech login with correct password+PIN",
+      "passed": true,
+      "details": "Token received, role=technician"
+    },
+    {
+      "test": "Login with wrong password returns 401",
+      "passed": true,
+      "details": "Status 401"
+    },
+    {
+      "test": "Login with wrong PIN returns 401",
+      "passed": true,
+      "details": "Status 401"
+    },
+    {
+      "test": "GET /auth/me with token returns user",
+      "passed": true,
+      "details": "Status 200"
+    },
+    {
+      "test": "GET /auth/me without token returns 401",
+      "passed": true,
+      "details": "Status 401"
+    },
+    {
+      "test": "Resolve unknown barcode returns found=false",
+      "passed": true,
+      "details": "Response: {'type': 'item', 'found': False, 'barcode': 'UNKNOWN_TEST_123'}"
+    },
+    {
+      "test": "Resolve LOC: prefix returns type=location",
+      "passed": true,
+      "details": "Response: {'type': 'location', 'location': 'SHELF A1', 'raw': 'LOC:SHELF_A1'}"
+    },
+    {
+      "test": "Stock-in auto-registers unknown barcode",
+      "passed": true,
+      "details": "registered=True, total=10.0"
+    },
+    {
+      "test": "Stock-in logs 'register' and 'in' actions",
+      "passed": true,
+      "details": "register=True, in=True"
+    },
+    {
+      "test": "FEFO setup: create 3 lots",
+      "passed": true,
+      "details": "Total qty=15.0"
+    },
+    {
+      "test": "FEFO: consumes earliest expiry first (2026-01-01)",
+      "passed": true,
+      "details": "LOT_JAN consumed=5.0, expected=5"
+    },
+    {
+      "test": "FEFO: then consumes next earliest (2026-06-01)",
+      "passed": true,
+      "details": "LOT_JUNE consumed=2.0, expected=2"
+    },
+    {
+      "test": "FEFO: leaves blank expiry untouched",
+      "passed": true,
+      "details": "LOT_BLANK consumed=0, expected=0"
+    },
+    {
+      "test": "FEFO: total remaining correct",
+      "passed": true,
+      "details": "Total after=8.0, expected=8"
+    },
+    {
+      "test": "FEFO verify: LOT_JAN fully consumed",
+      "passed": true,
+      "details": "LOT_JAN remaining=0.0"
+    },
+    {
+      "test": "FEFO verify: LOT_JUNE partially consumed",
+      "passed": true,
+      "details": "LOT_JUNE remaining=3.0"
+    },
+    {
+      "test": "FEFO verify: LOT_BLANK untouched",
+      "passed": true,
+      "details": "LOT_BLANK remaining=5.0"
+    },
+    {
+      "test": "FEFO: reports shortfall when insufficient",
+      "passed": true,
+      "details": "shortfall=92.0, ok=False"
+    },
+    {
+      "test": "FEFO: no negative quantities",
+      "passed": true,
+      "details": "All lot quantities >= 0"
+    },
+    {
+      "test": "Stocktake sets counted qty and logs adjust",
+      "passed": true,
+      "details": "counted=15.0, adjustment=5.0, total=15.0"
+    },
+    {
+      "test": "Move updates location",
+      "passed": true,
+      "details": "location=Shelf B"
+    },
+    {
+      "test": "Move supports LOC: prefix",
+      "passed": true,
+      "details": "location=SHELF C"
+    },
+    {
+      "test": "Item update works",
+      "passed": true,
+      "details": "ok=True"
+    },
+    {
+      "test": "Dashboard returns KPIs",
+      "passed": true,
+      "details": "KPIs present: ['total_value', 'total_items', 'low_stock_count', 'expiring_count', 'expiring_buckets']"
+    },
+    {
+      "test": "Dashboard returns reorder/expiring/items lists",
+      "passed": true,
+      "details": "Lists present: ['reorder', 'expiring', 'items']"
+    },
+    {
+      "test": "History returns log entries",
+      "passed": true,
+      "details": "Count: 20"
+    },
+    {
+      "test": "History filter by action works",
+      "passed": true,
+      "details": "All entries have action='in': True"
+    },
+    {
+      "test": "History filter by technician works",
+      "passed": true,
+      "details": "All entries have technician='Lab Admin': True"
+    },
+    {
+      "test": "CSV import works",
+      "passed": true,
+      "details": "imported=2, errors=0"
+    },
+    {
+      "test": "Export items.csv works",
+      "passed": true,
+      "details": "Status 200, content-type=text/csv; charset=utf-8"
+    },
+    {
+      "test": "Export history.csv works",
+      "passed": true,
+      "details": "Status 200, content-type=text/csv; charset=utf-8"
+    },
+    {
+      "test": "Backup returns JSON snapshot",
+      "passed": true,
+      "details": "Keys present: ['created_at', 'counts', 'items', 'lots', 'log']"
+    },
+    {
+      "test": "Admin can list users",
+      "passed": true,
+      "details": "User count: 2"
+    },
+    {
+      "test": "Tech gets 403 on /users",
+      "passed": true,
+      "details": "Status 403"
+    },
+    {
+      "test": "Admin can create user",
+      "passed": true,
+      "details": "Created user: testuser_081253"
+    },
+    {
+      "test": "GET /technicians returns list",
+      "passed": true,
+      "details": "Count: 1"
+    },
+    {
+      "test": "GET /locations returns list",
+      "passed": true,
+      "details": "Count: 3"
+    }
+  ]
+}
