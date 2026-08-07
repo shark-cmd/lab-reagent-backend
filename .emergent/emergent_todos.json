@@ -1,30 +1,30 @@
 [
   {
-    "content": "Backend: Usage trends endpoint (daily consumption + per-reagent totals)",
+    "content": "Backend: Usage trends endpoint",
     "status": "completed"
   },
   {
-    "content": "Backend: Purchase Orders model + CRUD (create from reorder, mark ordered/received)",
+    "content": "Backend: Purchase Orders CRUD + receive-into-stock",
     "status": "completed"
   },
   {
-    "content": "Backend: Digest endpoint + settings (recipient, schedule) — preview only, no provider",
+    "content": "Backend: Digest endpoint + settings (preview-only)",
     "status": "completed"
   },
   {
-    "content": "Frontend: Labels page (item barcodes + LOC shelf labels, printable via jsbarcode)",
+    "content": "Frontend: Labels page (printable barcodes + LOC labels)",
     "status": "completed"
   },
   {
-    "content": "Frontend: Purchase Orders page (create from reorder, list, printable PO, mark ordered)",
+    "content": "Frontend: Purchase Orders page",
     "status": "completed"
   },
   {
-    "content": "Frontend: Reports page (Usage Trends chart + Email Digest preview/settings)",
+    "content": "Frontend: Reports page (Usage Trends + Email Digest)",
     "status": "completed"
   },
   {
-    "content": "Wire nav + routes; test all new features via testing agent",
-    "status": "in_progress"
+    "content": "Nav + routes wired; all new features tested (100% pass)",
+    "status": "completed"
   }
 ]
