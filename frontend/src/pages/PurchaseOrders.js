@@ -151,8 +151,7 @@ export default function PurchaseOrders() {
 
   const downloadPDF = async (po) => {
     try {
-      const token = localStorage.getItem("ls_token");
-      const res = await api.get(`/purchase-orders/${po.id}/pdf`, { params: { token }, responseType: "blob" });
+      const res = await api.get(`/purchase-orders/${po.id}/pdf`, { responseType: "blob" });
       const url = window.URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
       const a = document.createElement("a");
       a.href = url;

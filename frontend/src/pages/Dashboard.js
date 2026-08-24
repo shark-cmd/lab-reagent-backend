@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import api, { getToken } from "@/lib/api";
+import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -87,7 +87,7 @@ export default function Dashboard() {
 
   const download = async (path, filename) => {
     try {
-      const res = await api.get(path, { params: { token: getToken() }, responseType: "blob" });
+      const res = await api.get(path, { responseType: "blob" });
       const url = window.URL.createObjectURL(new Blob([res.data]));
       const a = document.createElement("a");
       a.href = url;

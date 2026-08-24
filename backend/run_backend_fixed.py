@@ -20,13 +20,29 @@ class MockAsyncCursor:
     """Mock cursor that wraps mongomock cursor."""
     def __init__(self, cursor):
         self._cursor = cursor
-    
+        self._sort_key = None
+        self._sort_dir = None
+
     def sort(self, key_or_list, direction=None):
-        """Mock sort method that returns self (no-op for mock)."""
+        """Store sort params for apply in to_list()."""
+        if isinstance(key_or_list, str):
+            self._sort_key = key_or_list
+            self._sort_dir = direction or 1
+        elif isinstance(key_or_list, list) and key_or_list:
+            first = key_or_list[0]
+            if isinstance(first, (list, tuple)):
+                self._sort_key = first[0]
+                self._sort_dir = first[1] if len(first) > 1 else 1
+            else:
+                self._sort_key = first
+                self._sort_dir = direction or 1
         return self
-    
+
     async def to_list(self, length=None):
         docs = list(self._cursor)
+        if self._sort_key:
+            reverse = self._sort_dir == -1
+            docs.sort(key=lambda d: d.get(self._sort_key, ""), reverse=reverse)
         return docs[:length] if length else docs
 
 class MockAsyncCollection:
@@ -49,7 +65,7 @@ class MockAsyncCollection:
         result = self._collection.update_one(query, update, upsert=upsert)
         class R:
             modified_count = result.modified_count
-            matched_count = result.modified_count
+            matched_count = result.matched_count
         return R()
     
     async def delete_one(self, query):

@@ -642,18 +642,8 @@ def _csv_response(rows: List[list], filename: str):
     )
 
 
-async def _verify_query_token(token: Optional[str]):
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    try:
-        jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-
 @api.get("/export/items.csv")
-async def export_items(token: Optional[str] = None):
-    await _verify_query_token(token)
+async def export_items(user: dict = Depends(get_current_user)):
     items = await db.items.find({}, {"_id": 0}).to_list(100000)
     all_lots = await db.lots.find({}, {"_id": 0}).to_list(1000000)
     lots_by_item = {}
@@ -673,8 +663,7 @@ async def export_items(token: Optional[str] = None):
 
 
 @api.get("/export/history.csv")
-async def export_history(token: Optional[str] = None):
-    await _verify_query_token(token)
+async def export_history(user: dict = Depends(get_current_user)):
     logs = await db.log.find({}, {"_id": 0}).sort("ts", -1).to_list(100000)
     ids = list({l["item_id"] for l in logs if l.get("item_id")})
     items = await db.items.find({"id": {"$in": ids}}, {"_id": 0, "id": 1, "name": 1}).to_list(100000)
@@ -688,8 +677,7 @@ async def export_history(token: Optional[str] = None):
 
 # ----------------------- Backups / snapshot -----------------------
 @api.get("/backup")
-async def backup(token: Optional[str] = None):
-    await _verify_query_token(token)
+async def backup(user: dict = Depends(get_current_user)):
     items = await db.items.find({}, {"_id": 0}).to_list(1000000)
     lots = await db.lots.find({}, {"_id": 0}).to_list(1000000)
     logs = await db.log.find({}, {"_id": 0}).to_list(1000000)
@@ -952,8 +940,7 @@ def _build_po_pdf(po: dict) -> bytes:
 
 
 @api.get("/purchase-orders/{po_id}/pdf")
-async def po_pdf(po_id: str, token: Optional[str] = None):
-    await _verify_query_token(token)
+async def po_pdf(po_id: str, user: dict = Depends(get_current_user)):
     po = await db.purchase_orders.find_one({"id": po_id}, {"_id": 0})
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
