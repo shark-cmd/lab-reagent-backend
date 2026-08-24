@@ -141,6 +141,24 @@ async def usage_rate_per_day(item_id: str, window_days: int = 30) -> float:
     return total / window_days if total > 0 else 0.0
 
 
+async def usage_rates_batch(item_ids: list, window_days: int = 30) -> dict:
+    """Average daily usage for multiple items in a single query. Returns {item_id: rate}."""
+    if not item_ids:
+        return {}
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=window_days)).isoformat()
+    cur = db.log.find(
+        {"item_id": {"$in": item_ids}, "action": "use", "ts": {"$gte": cutoff}},
+        {"_id": 0, "item_id": 1, "qty": 1},
+    )
+    entries = await cur.to_list(1000000)
+    totals = {}
+    for e in entries:
+        iid = e.get("item_id")
+        if iid:
+            totals[iid] = totals.get(iid, 0) + (e.get("qty", 0) or 0)
+    return {iid: (totals.get(iid, 0) / window_days if totals.get(iid, 0) > 0 else 0.0) for iid in item_ids}
+
+
 # ----------------------- Models -----------------------
 class LoginReq(BaseModel):
     username: str
@@ -179,7 +197,6 @@ class StockInReq(BaseModel):
     location: str = ""
     storage: str = "Ambient"
     cost: float = 0
-    action: str = "in"
 
 
 class UseReq(BaseModel):
@@ -492,6 +509,9 @@ async def dashboard(user: dict = Depends(get_current_user)):
     for l in all_lots:
         lots_by_item.setdefault(l["item_id"], []).append(l)
 
+    item_ids = [it["id"] for it in items]
+    usage_rates = await usage_rates_batch(item_ids)
+
     total_value = 0.0
     reorder = []
     expiring = []
@@ -503,7 +523,7 @@ async def dashboard(user: dict = Depends(get_current_user)):
         total = sum(l.get("qty", 0) for l in lots)
         value = total * it.get("cost", 0)
         total_value += value
-        rate = await usage_rate_per_day(it["id"])
+        rate = usage_rates.get(it["id"], 0.0)
         days_left = round(total / rate, 1) if rate > 0 else None
 
         items_out.append({
@@ -771,8 +791,11 @@ class POUpdate(BaseModel):
 
 
 async def _next_po_number() -> str:
-    count = await db.purchase_orders.count_documents({})
-    return f"PO-{datetime.now(timezone.utc).strftime('%Y%m')}-{count + 1:04d}"
+    ym = datetime.now(timezone.utc).strftime('%Y%m')
+    counter = await db.po_counters.find_one_and_update(
+        {"_id": ym}, {"$inc": {"seq": 1}}, upsert=True, return_document=True
+    )
+    return f"PO-{ym}-{counter['seq']:04d}"
 
 
 @api.post("/purchase-orders")
@@ -864,7 +887,7 @@ async def receive_po(po_id: str, user: dict = Depends(get_current_user)):
 
 
 @api.delete("/purchase-orders/{po_id}")
-async def delete_po(po_id: str, user: dict = Depends(get_current_user)):
+async def delete_po(po_id: str, admin: dict = Depends(require_admin)):
     await db.purchase_orders.delete_one({"id": po_id})
     return {"ok": True}
 

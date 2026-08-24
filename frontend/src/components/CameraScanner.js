@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ const REGION_ID = "ls-camera-region";
 export const CameraScanner = ({ open, onClose, onDetected }) => {
   const scannerRef = useRef(null);
   const runningRef = useRef(false);
+  const onDetectedRef = useRef(onDetected);
+  onDetectedRef.current = onDetected;
 
   useEffect(() => {
     let cancelled = false;
@@ -22,7 +24,7 @@ export const CameraScanner = ({ open, onClose, onDetected }) => {
           { fps: 12, qrbox: { width: 260, height: 160 }, aspectRatio: 1.6 },
           (decodedText) => {
             if (cancelled) return;
-            onDetected?.(decodedText);
+            onDetectedRef.current?.(decodedText);
             stop();
           },
           () => {}
@@ -49,7 +51,6 @@ export const CameraScanner = ({ open, onClose, onDetected }) => {
       cancelled = true;
       stop();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   return (

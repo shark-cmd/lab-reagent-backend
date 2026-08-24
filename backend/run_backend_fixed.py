@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Start the LabStock backend with mock MongoDB."""
 import sys
-sys.path.insert(0, '/workspaces/lab_inventory_github/lab-reagent-trackerX/backend')
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))
 
 import mongomock
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
@@ -67,6 +68,13 @@ class MockAsyncCollection:
             modified_count = result.modified_count
             matched_count = result.matched_count
         return R()
+
+    async def find_one_and_update(self, query, update, upsert=False, return_document=None):
+        result = self._collection.find_one_and_update(
+            query, update, upsert=upsert,
+            return_document=True if return_document == True else False,
+        )
+        return result
     
     async def delete_one(self, query):
         result = self._collection.delete_one(query)
@@ -112,7 +120,6 @@ print(f"  Database: labstock")
 print(f"  Collections: {list(mock_db._db.list_collection_names())}")
 
 # Set environment variables if not set
-import os
 os.environ.setdefault('MONGO_URL', 'mongodb://localhost:27017')
 os.environ.setdefault('DB_NAME', 'labstock')
 

@@ -50,135 +50,129 @@ Generated from full codebase audit of backend (`server.py`, `run_backend_fixed.p
 
 ## Medium Bugs
 
-### BUG-005: Hardcoded Linux paths in mock scripts break on Windows
+### BUG-005: Hardcoded Linux paths in mock scripts break on Windows ✅ FIXED
 
 - **Files:** `backend/run_backend_fixed.py:4`, `backend/mock_mongo.py:3`
 - **Severity:** Medium
-- **Description:** Both files contain `sys.path.insert(0, '/workspaces/lab_inventory_github/lab-reagent-trackerX/backend')`. This is a Linux/WSL path that fails on native Windows (the current platform is `win32`).
-- **Fix:** Use relative paths: `sys.path.insert(0, str(Path(__file__).parent))`.
+- **Description:** Both files contained `sys.path.insert(0, '/workspaces/lab_inventory_github/lab-reagent-trackerX/backend')`. This was a Linux/WSL path that failed on native Windows (the current platform is `win32`).
+- **Fix:** Changed to `sys.path.insert(0, str(Path(__file__).parent))` using `pathlib.Path`.
 
 ---
 
-### BUG-006: Dashboard N+1 query — one DB query per item for usage rate
+### BUG-006: Dashboard N+1 query — one DB query per item for usage rate ✅ FIXED
 
 - **File:** `backend/server.py:506` (inside `dashboard()`)
 - **Severity:** Medium
-- **Description:** The dashboard loop calls `await usage_rate_per_day(it["id"])` for each item. Each call runs a separate MongoDB query against the log collection. With N items, this produces N+2 queries (1 for items, 1 for lots, N for usage rates).
-- **Impact:** Dashboard loads slowly with many items.
-- **Fix:** Batch usage rate calculation into a single aggregation query.
+- **Description:** The dashboard loop called `await usage_rate_per_day(it["id"])` for each item. Each call ran a separate MongoDB query against the log collection. With N items, this produced N+2 queries.
+- **Fix:** Added `usage_rates_batch()` function that fetches all usage rates in a single query with `$in` filter. Dashboard now does 3 queries total (items, lots, usage rates) regardless of item count.
 
 ---
 
-### BUG-007: PO number generation race condition — duplicate PO numbers possible
+### BUG-007: PO number generation race condition — duplicate PO numbers possible ✅ FIXED
 
 - **File:** `backend/server.py:785-787`
 - **Severity:** Medium
-- **Description:** `_next_po_number()` uses `count_documents({})` then increments. Two concurrent requests can read the same count and generate identical PO numbers.
-- **Fix:** Use an atomic counter document with `find_one_and_update` and `upsert=True`.
+- **Description:** `_next_po_number()` used `count_documents({})` then incremented. Two concurrent requests could read the same count and generate identical PO numbers.
+- **Fix:** Replaced with atomic counter using `find_one_and_update` with `upsert=True` on a `po_counters` collection. Each month gets its own counter document. Also added `find_one_and_update` to the mock collection class.
 
 ---
 
-### BUG-008: Dead route files reference undefined variables — cannot be imported
+### BUG-008: Dead route files reference undefined variables — cannot be imported ✅ FIXED
 
-- **Files:** `backend/server_routes_api.py`, `backend/server_routes_auth.py`
+- **Files:** `backend/server_routes_api.py`, `backend/server_routes_auth.py`, `backend/server_routes.py`
 - **Severity:** Medium
-- **Description:** These files define route handlers but reference variables (`db`, `api`, `datetime`, `jwt`, `new_id`, `hash_password`, etc.) that are never imported. They appear to be intended as modular route files but `server.py` is monolithic and never imports them. They are dead code that could mislead future contributors.
-- **Fix:** Either integrate them into `server.py` via `include_router`, or delete them.
+- **Description:** These files defined route handlers but referenced variables (`db`, `api`, `datetime`, `jwt`, `new_id`, `hash_password`, etc.) that were never imported. They were dead code that could mislead future contributors.
+- **Fix:** Deleted all three files.
 
 ---
 
-### BUG-009: `mock_mongo.py` is structurally broken — never used
+### BUG-009: `mock_mongo.py` is structurally broken — never used ✅ FIXED
 
 - **File:** `backend/mock_mongo.py`
 - **Severity:** Medium
-- **Description:** `MockMotorDatabase` defines collection accessors as async methods (`async def items(self)`), but the server accesses them as properties (`db.items`). This mock would fail with `AttributeError` if actually used. The working mock is in `run_backend_fixed.py`.
-- **Fix:** Delete this file or rewrite it to match the working mock in `run_backend_fixed.py`.
+- **Description:** `MockMotorDatabase` defined collection accessors as async methods (`async def items(self)`), but the server accesses them as properties (`db.items`). This mock would fail with `AttributeError` if actually used. The working mock is in `run_backend_fixed.py`.
+- **Fix:** Deleted the file.
 
 ---
 
-### BUG-010: Delete PO endpoint has no admin check
+### BUG-010: Delete PO endpoint has no admin check ✅ FIXED
 
 - **File:** `backend/server.py:878-881`
 - **Severity:** Medium
-- **Description:** `delete_po` uses `get_current_user` (any authenticated user), while `delete_item` and `delete_user` properly use `require_admin`. Any logged-in technician can delete purchase orders.
-- **Fix:** Change dependency from `get_current_user` to `require_admin`.
+- **Description:** `delete_po` used `get_current_user` (any authenticated user), while `delete_item` and `delete_user` properly used `require_admin`. Any logged-in technician could delete purchase orders.
+- **Fix:** Changed dependency from `get_current_user` to `require_admin`.
 
 ---
 
 ## Minor Bugs / Code Issues
 
-### BUG-011: `StockInReq.action` field is dead code
+### BUG-011: `StockInReq.action` field is dead code ✅ FIXED
 
 - **File:** `backend/server.py:182`
 - **Severity:** Minor
-- **Description:** The `action: str = "in"` field on `StockInReq` is defined but never read by `do_stock_in`. It adds confusion.
-- **Fix:** Remove the field.
+- **Description:** The `action: str = "in"` field on `StockInReq` was defined but never read by `do_stock_in`. It added confusion.
+- **Fix:** Removed the field from the model.
 
 ---
 
-### BUG-012: CameraScanner `useEffect` missing `onDetected` dependency
+### BUG-012: CameraScanner `useEffect` missing `onDetected` dependency ✅ FIXED
 
 - **File:** `frontend/src/components/CameraScanner.js:53`
 - **Severity:** Minor
-- **Description:** The `useEffect` for camera start/stop depends only on `[open]` but captures `onDetected` in its closure. If `onDetected` changes identity between renders, the scanner uses a stale callback. The `eslint-disable` comment masks this.
-- **Impact:** Low in practice because `onDetected` calls state setters which are stable.
-- **Fix:** Wrap `onDetected` in `useCallback` in the parent and add it to the deps array.
+- **Description:** The `useEffect` for camera start/stop depended only on `[open]` but captured `onDetected` in its closure. If `onDetected` changed identity between renders, the scanner used a stale callback.
+- **Fix:** Added `onDetectedRef` to hold the latest callback. The effect reads from the ref, which is always current. Removed the `eslint-disable` comment.
 
 ---
 
-### BUG-013: `_verify_query_token` doesn't check if user is active
+### BUG-013: `_verify_query_token` doesn't check if user is active ✅ FIXED (moot)
 
 - **File:** `backend/server.py:645-651`
 - **Severity:** Minor (Security)
-- **Description:** Unlike `get_current_user`, this function only verifies JWT signature. A disabled user with a still-valid token could access exports/backup.
-- **Fix:** Decode the token, look up the user, and check `active` status.
+- **Description:** Unlike `get_current_user`, this function only verified JWT signature. A disabled user with a still-valid token could access exports/backup.
+- **Fix:** Function removed entirely in BUG-003 fix. Export/backup/PDF endpoints now use `get_current_user` which checks active status.
 
 ---
 
-### BUG-014: `server.py:182` — `StockInReq` model has unused `action` field
-
-- **File:** `backend/server.py:182`
-- **Severity:** Minor
-- **Description:** Duplicate of BUG-011, listed separately for tracking.
+### BUG-014: Duplicate of BUG-011 — removed
 
 ---
 
-### BUG-015: `requirements.txt` contains many unused packages
+### BUG-015: `requirements.txt` contains many unused packages ✅ FIXED
 
 - **File:** `backend/requirements.txt`
 - **Severity:** Minor
-- **Description:** Packages like `litellm`, `openai`, `google-generativeai`, `boto3`, `stripe`, `pandas`, `numpy`, `tiktoken`, `tokenizers`, etc. are not imported anywhere in the application. They bloat the install and increase attack surface.
-- **Fix:** Audit imports and remove unused dependencies.
+- **Description:** Packages like `litellm`, `openai`, `google-generativeai`, `boto3`, `stripe`, `pandas`, `numpy`, `tiktoken`, `tokenizers`, etc. were not imported anywhere in the application. They bloated the install and increased attack surface.
+- **Fix:** Replaced with a clean requirements.txt containing only the 11 packages actually used: fastapi, uvicorn, starlette, pydantic, motor, pymongo, mongomock, PyJWT, bcrypt, python-multipart, python-dotenv, reportlab.
 
 ---
 
-### BUG-016: No `.env` file in backend directory
+### BUG-016: No `.env` file in backend directory ✅ FIXED
 
 - **File:** `backend/` (missing `.env`)
 - **Severity:** Minor
-- **Description:** `server.py` loads `.env` via `load_dotenv(ROOT_DIR / ".env")` and requires `MONGO_URL` and `DB_NAME`. Only `run_backend_fixed.py` sets these env vars. Any other startup path fails with `KeyError`.
-- **Fix:** Create a `.env` file with defaults, or add a `.env.example`.
+- **Description:** `server.py` loaded `.env` via `load_dotenv(ROOT_DIR / ".env")` and required `MONGO_URL` and `DB_NAME`. Only `run_backend_fixed.py` set these env vars. Any other startup path failed with `KeyError`.
+- **Fix:** Created `backend/.env` with defaults: `MONGO_URL=mongodb://localhost:27017`, `DB_NAME=labstock`, `JWT_SECRET`, `CORS_ORIGINS=*`.
 
 ---
 
-### BUG-017: `run_backend_fixed.py` duplicate `import os`
+### BUG-017: `run_backend_fixed.py` duplicate `import os` ✅ FIXED
 
 - **File:** `backend/run_backend_fixed.py:10,99`
 - **Severity:** Minor
-- **Description:** `import os` appears twice. Harmless but sloppy.
-- **Fix:** Remove the duplicate.
+- **Description:** `import os` appeared twice. Harmless but sloppy.
+- **Fix:** Removed the duplicate.
 
 ---
 
 ## Architecture Issues
 
-### ARCH-001: Three versions of backend code — confusing and maintenance-prone
+### ARCH-001: Three versions of backend code — confusing and maintenance-prone ✅ PARTIALLY FIXED
 
-- `server.py` — Monolithic, canonical file (1218 lines). All routes, models, and services in one file.
-- `server_core.py` — Truncated copy of the first ~300 lines of `server.py`. Never imported.
-- `server_routes_api.py` / `server_routes_auth.py` — Route fragments with undefined variables. Never imported.
+- `server.py` — Monolithic, canonical file (1223 lines). All routes, models, and services in one file.
+- `server_core.py` — Truncated copy of the first ~300 lines of `server.py`. Never imported. **Still exists.**
+- `server_routes_api.py` / `server_routes_auth.py` / `server_routes.py` — Dead route fragments. **Deleted.**
 
-**Recommendation:** Keep only `server.py` or properly refactor into a package with `routes/`, `models/`, `services/` modules.
+**Remaining:** `server_core.py` is still present but harmless. Consider deleting it in a future cleanup.
 
 ---
 
