@@ -66,6 +66,10 @@ class MockAsyncCollection:
     async def distinct(self, key, filter=None):
         return self._collection.distinct(key, filter)
 
+    async def create_index(self, *args, **kwargs):
+        """Match Motor's create_index API so startup index seeding stays quiet."""
+        return self._collection.create_index(*args, **kwargs)
+
 class MockAsyncDatabase:
     """Mock database that properly handles attribute access for collections."""
     def __init__(self, db):

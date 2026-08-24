@@ -30,7 +30,7 @@ mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
-JWT_SECRET = os.environ.get("JWT_SECRET", "labstock-dev-secret-change-me")
+JWT_SECRET = os.environ.get("JWT_SECRET", "labstock-dev-secret-change-me-please")
 JWT_ALG = "HS256"
 JWT_EXPIRE_HOURS = 12
 
