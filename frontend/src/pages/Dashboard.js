@@ -68,6 +68,7 @@ export default function Dashboard() {
   const [importing, setImporting] = useState(false);
   const [editItem, setEditItem] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState("reorder");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -84,6 +85,15 @@ export default function Dashboard() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Auto-select most urgent tab based on data
+  useEffect(() => {
+    if (!data) return;
+    const k = data.kpis;
+    if (k?.low_stock_count > 0) setActiveTab("reorder");
+    else if (k?.expiring_count > 0) setActiveTab("expiring");
+    else setActiveTab("items");
+  }, [data]);
 
   const download = async (path, filename) => {
     try {
@@ -190,11 +200,12 @@ export default function Dashboard() {
           <p className="text-sm text-slate-500">Inventory overview, alerts &amp; data tools</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => setImportOpen(true)} data-testid="import-open-button">
+            <Upload className="h-4 w-4 mr-1.5" /> Import CSV
+          </Button>
+          <div className="h-8 w-px bg-slate-200 hidden sm:block" role="separator" />
           <Button variant="outline" size="sm" onClick={load} data-testid="dashboard-refresh-button">
             <RefreshCw className="h-4 w-4 mr-1.5" /> Refresh
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setImportOpen(true)} data-testid="import-open-button">
-            <Upload className="h-4 w-4 mr-1.5" /> Import CSV
           </Button>
           <Button variant="outline" size="sm" onClick={() => download("/export/items.csv", "labstock_items.csv")} data-testid="export-items-button">
             <Download className="h-4 w-4 mr-1.5" /> Items CSV
@@ -244,13 +255,19 @@ export default function Dashboard() {
         />
       </div>
 
-      <Tabs defaultValue="reorder" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full sm:w-auto sm:inline-grid grid-cols-3">
-          <TabsTrigger value="reorder" data-testid="tab-reorder">
+          <TabsTrigger value="reorder" data-testid="tab-reorder" className="relative">
             Reorder ({k?.low_stock_count || 0})
+            {k?.low_stock_count > 0 && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500" />
+            )}
           </TabsTrigger>
-          <TabsTrigger value="expiring" data-testid="tab-expiring">
+          <TabsTrigger value="expiring" data-testid="tab-expiring" className="relative">
             Expiring ({k?.expiring_count || 0})
+            {k?.expiring_count > 0 && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-500" />
+            )}
           </TabsTrigger>
           <TabsTrigger value="items" data-testid="tab-items">
             All items ({k?.total_items || 0})

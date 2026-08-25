@@ -67,6 +67,23 @@ export default function ScanPage() {
     setTimeout(() => inputRef.current?.focus(), 50);
   }, []);
 
+  // Keyboard shortcuts for mode switching (1-4)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't trigger if user is typing in an input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      
+      const modeMap = { '1': 'use', '2': 'receive', '3': 'count', '4': 'move' };
+      const newMode = modeMap[e.key];
+      if (newMode) {
+        setMode(newMode);
+        vibrate(10);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   useEffect(() => {
     focusInput();
   }, [mode, focusInput]);
@@ -298,13 +315,20 @@ export default function ScanPage() {
   const showQty = mode !== "move";
   const showLotExpiry = mode === "receive";
 
+  const MODE_DESCRIPTIONS = {
+    use: { title: "Use Mode", desc: "Remove stock from inventory. Items are consumed using FEFO (First Expired, First Out). Enter the quantity you're taking.", shortcut: "1" },
+    receive: { title: "Receive Mode", desc: "Add incoming stock to a queue. Fill in lot and expiry, scan items, then commit the entire batch at once.", shortcut: "2" },
+    count: { title: "Count Mode", desc: "Perform a stocktake. Enter the physical count you see on the shelf. LabStock adjusts inventory to match.", shortcut: "3" },
+    move: { title: "Move Mode", desc: "Change an item's storage location. Set the destination location first (scan a LOC: label or type it), then scan items.", shortcut: "4" },
+  };
+
   return (
     <div className="space-y-5">
       <InfoBanner id="scan" title="How scanning works:" testid="scan-info-banner">
         Pick a mode, then scan or type a barcode and press Enter. <b>Use</b> removes stock (oldest-expiry first),
         <b> Receive</b> adds incoming stock to a queue you commit together, <b>Count</b> sets a physical stocktake number,
         and <b>Move</b> changes an item's location. Scanning a <span className="font-mono">LOC:</span> shelf label sets the active location.
-        Unknown barcodes pop up a quick registration form.
+        Unknown barcodes pop up a quick registration form. Press <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[11px] font-mono">1</kbd>-<kbd className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[11px] font-mono">4</kbd> to switch modes.
       </InfoBanner>
 
       {/* Header */}
@@ -313,6 +337,11 @@ export default function ScanPage() {
           <div>
             <h1 className="font-heading text-2xl font-bold text-slate-900 flex items-center gap-2">
               <ScanLine className="h-6 w-6 text-[color:var(--ls-primary)]" /> Scan
+              {mode !== 'receive' && queue.length > 0 && (
+                <span className="ml-2 inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full bg-amber-500 text-white text-xs font-bold" data-testid="queue-count-badge">
+                  {queue.length}
+                </span>
+              )}
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">
               Signed in as <span className="font-medium text-slate-700">{user?.name}</span> · {currentMode?.hint}
@@ -342,18 +371,35 @@ export default function ScanPage() {
           onValueChange={(v) => v && setMode(v)}
           className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2"
         >
-          {MODES.map((m) => (
+          {MODES.map((m, idx) => (
             <ToggleGroupItem
               key={m.key}
               value={m.key}
               data-testid={m.testid}
-              className="h-14 rounded-xl border border-[color:var(--ls-border)] bg-white data-[state=on]:bg-[color:var(--ls-primary-soft)] data-[state=on]:text-[color:var(--ls-primary)] data-[state=on]:border-[color:var(--ls-primary)] flex-col gap-1 hover:shadow-sm transition-colors"
+              className="h-14 rounded-xl border border-[color:var(--ls-border)] bg-white data-[state=on]:bg-[color:var(--ls-primary-soft)] data-[state=on]:text-[color:var(--ls-primary)] data-[state=on]:border-[color:var(--ls-primary)] flex-col gap-1 hover:shadow-sm transition-colors relative"
             >
+              <div className="absolute top-1 right-1.5 text-[10px] text-slate-400 font-mono">{idx + 1}</div>
               <m.icon className="h-5 w-5" />
               <span className="text-[13px] font-semibold">{m.label}</span>
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
+
+        {/* Mode description banner */}
+        <div className="mt-4 p-3 rounded-lg bg-slate-50 border border-slate-200" data-testid="mode-description-banner">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center w-6 h-6 rounded bg-[color:var(--ls-primary)] text-white text-xs font-bold">
+              {MODE_DESCRIPTIONS[mode]?.shortcut}
+            </div>
+            <span className="font-medium text-slate-800 text-sm">{MODE_DESCRIPTIONS[mode]?.title}</span>
+            {mode === 'receive' && queue.length > 0 && (
+              <span className="ml-2 inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-500 text-white text-[11px] font-bold">
+                {queue.length}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-slate-600 mt-1.5 ml-8">{MODE_DESCRIPTIONS[mode]?.desc}</p>
+        </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-5">
