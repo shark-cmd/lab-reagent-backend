@@ -18,11 +18,11 @@
 
 | Layer | Technology |
 |-------|------------|
-| Backend | FastAPI, Python 3.11+, Motor/PyMongo, JWT (python-jose), bcrypt |
-| Frontend | React 19, Tailwind CSS, shadcn/ui, Radix UI primitives |
+| Backend | FastAPI, Python 3.12, Motor/PyMongo, JWT (PyJWT), bcrypt |
+| Frontend | React 19, Tailwind CSS, shadcn/ui, Radix UI primitives, CRACO |
 | Data | MongoDB (mock mode available for development) |
 | Scanning | html5-qrcode (camera), auto-focused text input (USB) |
-| Icons | lucide-react |
+| Deployment | Vercel (frontend), Docker, Render, Coolify, any VPS |
 
 ## Getting Started
 
@@ -51,6 +51,52 @@ npm start
 ```
 
 App opens at **http://localhost:3000**
+
+## Deployment
+
+### Vercel (Frontend)
+
+1. Push repo to GitHub
+2. Import on [vercel.com](https://vercel.com) — set **Root Directory** to `frontend`
+3. Framework auto-detected as Create React App
+4. Set env var: `REACT_APP_BACKEND_URL` → your backend URL
+5. Deploy
+
+The `frontend/vercel.json` handles SPA rewrites and static asset caching.
+
+### Render (Backend)
+
+1. Create a free MongoDB cluster at [MongoDB Atlas](https://cloud.mongodb.com)
+2. Import repo on [render.com](https://render.com) > New > Blueprint
+3. It auto-detects `render.yaml` — set `MONGO_URL` to your Atlas connection string
+4. Deploy
+
+### Docker / Coolify / VPS
+
+```bash
+# Full stack (backend + MongoDB + frontend)
+docker compose up -d
+
+# Backend only (use external MongoDB)
+docker compose up -d backend
+```
+
+Set env vars via a `.env` file at project root or your platform's dashboard:
+
+```bash
+cp backend/.env.example backend/.env
+# Edit backend/.env with your values
+```
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MONGO_URL` | MongoDB connection string | `mongodb://localhost:27017` |
+| `DB_NAME` | Database name | `labstock` |
+| `JWT_SECRET` | JWT signing secret | `labstock-dev-secret-change-me-please` |
+| `CORS_ORIGINS` | Allowed origins | `*` |
+| `REACT_APP_BACKEND_URL` | Backend API URL (frontend) | `http://localhost:8000` |
 
 ## Default Credentials
 
@@ -90,21 +136,24 @@ End-to-end flows covered: register → receive → use (FEFO) → move → stock
 ```
 lab-reagent-trackerX/
 ├── backend/
-│   ├── server.py
-│   ├── server_routes_api.py
-│   ├── server_routes_auth.py
-│   ├── run_backend_fixed.py
-│   └── requirements.txt
+│   ├── server.py              # FastAPI application
+│   ├── run_backend_fixed.py   # Dev launcher (mock MongoDB)
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── .env.example
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
 │   │   ├── pages/
-│   │   ├── services/
-│   │   └── index.css
+│   │   └── lib/
+│   ├── craco.config.js
 │   ├── tailwind.config.js
-│   └── package.json
-├── design_guidelines.md
-├── plan.md
+│   ├── package.json
+│   ├── vercel.json
+│   ├── Dockerfile
+│   └── .env.example
+├── docker-compose.yml
+├── render.yaml
 └── README.md
 ```
 
