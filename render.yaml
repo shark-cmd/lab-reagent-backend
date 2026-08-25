@@ -21,7 +21,7 @@ services:
     name: labstock-frontend
     runtime: static
     rootDir: frontend
-    buildCommand: yarn install && yarn build
+    buildCommand: npm install --legacy-peer-deps && npm run build
     staticPublishPath: build
     routes:
       - type: rewrite

@@ -23,7 +23,7 @@ services:
     container_name: labstock-mongo
     restart: unless-stopped
     ports:
-      - "${MONGO_PORT:-27017}:27017"
+      - "${MONGO_PORT:-27018}:27017"
     volumes:
       - mongo_data:/data/db
     healthcheck:
@@ -41,7 +41,7 @@ services:
     container_name: labstock-frontend
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-3000}:80"
+      - "${FRONTEND_PORT:-3001}:80"
     depends_on:
       - backend
     networks:
