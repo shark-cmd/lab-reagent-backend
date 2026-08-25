@@ -67,9 +67,20 @@ The `frontend/vercel.json` handles SPA rewrites and static asset caching.
 ### Render (Backend)
 
 1. Create a free MongoDB cluster at [MongoDB Atlas](https://cloud.mongodb.com)
-2. Import repo on [render.com](https://render.com) > New > Blueprint
-3. It auto-detects `render.yaml` — set `MONGO_URL` to your Atlas connection string
-4. Deploy
+2. Import repo on [render.com](https://render.com) > New > Web Service
+3. Select **Docker** as runtime — Render will detect the root `Dockerfile`
+4. Set the following environment variables in the **Environment** tab:
+
+| Key | Value |
+|-----|-------|
+| `MONGO_URL` | Your MongoDB Atlas connection string |
+| `DB_NAME` | `labstock` |
+| `JWT_SECRET` | A strong random secret |
+| `CORS_ORIGINS` | `*` (or your frontend domain) |
+
+5. Deploy
+
+> **Note:** If using Blueprint (render.yaml), only `MONGO_URL` needs to be set manually — the rest are defined in the file.
 
 ### Docker / Coolify / VPS
 
@@ -153,6 +164,7 @@ lab-reagent-trackerX/
 │   ├── Dockerfile
 │   └── .env.example
 ├── docker-compose.yml
+├── Dockerfile
 ├── render.yaml
 └── README.md
 ```
