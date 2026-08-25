@@ -595,6 +595,52 @@ async def history(limit: int = 500, action: Optional[str] = None,
     return {"logs": logs, "count": len(logs)}
 
 
+@api.get("/recent-scans")
+async def recent_scans(limit: int = 12, user: dict = Depends(get_current_user)):
+    logs = await db.log.find(
+        {"action": {"$in": ["use", "in", "adjust", "adjust_out", "move"]}},
+        {"_id": 0}
+    ).sort("ts", -1).to_list(limit)
+    ids = list({l["item_id"] for l in logs if l.get("item_id")})
+    items = await db.items.find({"id": {"$in": ids}}, {"_id": 0, "id": 1, "name": 1, "barcode": 1}).to_list(100000)
+    name_map = {i["id"]: i for i in items}
+    result = []
+    for l in logs:
+        info = name_map.get(l.get("item_id"), {})
+        action = l.get("action", "")
+        qty = l.get("qty", 0)
+        if action == "use":
+            detail = f"-{qty} → {l.get('detail', '')}"
+            ok = True
+            mode = "use"
+        elif action == "in":
+            detail = f"+{qty} {l.get('detail', '')}"
+            ok = True
+            mode = "receive"
+        elif action in ("adjust", "adjust_out"):
+            sign = "+" if qty > 0 else ""
+            detail = f"adj {sign}{qty} {l.get('detail', '')}"
+            ok = True
+            mode = "count"
+        elif action == "move":
+            detail = l.get("detail", "")
+            ok = True
+            mode = "move"
+        else:
+            detail = l.get("detail", "")
+            ok = True
+            mode = action
+        result.append({
+            "mode": mode,
+            "name": info.get("name", "—"),
+            "barcode": info.get("barcode", ""),
+            "detail": detail,
+            "ok": ok,
+            "ts": l.get("ts", ""),
+        })
+    return {"scans": result}
+
+
 @api.get("/technicians")
 async def technicians(user: dict = Depends(get_current_user)):
     names = await db.log.distinct("technician")

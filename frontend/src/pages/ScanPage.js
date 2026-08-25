@@ -32,7 +32,7 @@ import {
 import { toast } from "sonner";
 
 const MODES = [
-  { key: "use", label: "Use", icon: MinusCircle, testid: "scan-mode-use-toggle", hint: "Consume stock (FEFO)" },
+  { key: "use", label: "Use", icon: MinusCircle, testid: "scan-mode-use-toggle", hint: "Consume existing stock (FEFO)" },
   { key: "receive", label: "Receive", icon: PackagePlus, testid: "scan-mode-receive-toggle", hint: "Add incoming stock" },
   { key: "count", label: "Count", icon: ClipboardCheck, testid: "scan-mode-count-toggle", hint: "Stocktake / cycle count" },
   { key: "move", label: "Move", icon: MoveRight, testid: "scan-mode-move-toggle", hint: "Change storage location" },
@@ -44,6 +44,18 @@ const vibrate = (ms) => {
   } catch {}
 };
 
+const STORAGE_KEY_SCANS = "labstock_recent_scans";
+const STORAGE_KEY_QUEUE = "labstock_receive_queue";
+
+const loadFromStorage = (key, fallback) => {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
 export default function ScanPage() {
   const { user } = useAuth();
   const [mode, setMode] = useState("use");
@@ -53,9 +65,9 @@ export default function ScanPage() {
   const [expiry, setExpiry] = useState("");
   const [activeLocation, setActiveLocation] = useState("");
   const [busy, setBusy] = useState(false);
-  const [scans, setScans] = useState([]);
+  const [scans, setScans] = useState(() => loadFromStorage(STORAGE_KEY_SCANS, []));
   const [cameraOpen, setCameraOpen] = useState(false);
-  const [queue, setQueue] = useState([]);
+  const [queue, setQueue] = useState(() => loadFromStorage(STORAGE_KEY_QUEUE, []));
 
   // register dialog
   const [regOpen, setRegOpen] = useState(false);
@@ -65,6 +77,31 @@ export default function ScanPage() {
 
   const focusInput = useCallback(() => {
     setTimeout(() => inputRef.current?.focus(), 50);
+  }, []);
+
+  // Persist scans to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_SCANS, JSON.stringify(scans));
+  }, [scans]);
+
+  // Persist receive queue to localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY_QUEUE, JSON.stringify(queue));
+  }, [queue]);
+
+  // Load recent scans from database on mount
+  useEffect(() => {
+    const loadScans = async () => {
+      try {
+        const { data } = await api.get("/recent-scans?limit=12");
+        if (data.scans?.length > 0) {
+          setScans(data.scans);
+        }
+      } catch {
+        // localStorage fallback already loaded via useState initializer
+      }
+    };
+    loadScans();
   }, []);
 
   // Keyboard shortcuts for mode switching (1-4)
@@ -223,10 +260,16 @@ export default function ScanPage() {
         return;
       }
 
-      // Resolve to check existence for modes that need registration
+      // Resolve to check existence
       const { data } = await api.post("/resolve", { barcode: code });
       if (data.type === "item" && !data.found) {
-        handleUnknown(code);
+        // Only allow registration in receive mode; use/count/move require existing items
+        if (mode === "receive") {
+          handleUnknown(code);
+          return;
+        }
+        toast.error("Barcode not registered. Only Receive mode can register new items.");
+        vibrate(60);
         return;
       }
 
@@ -316,10 +359,10 @@ export default function ScanPage() {
   const showLotExpiry = mode === "receive";
 
   const MODE_DESCRIPTIONS = {
-    use: { title: "Use Mode", desc: "Remove stock from inventory. Items are consumed using FEFO (First Expired, First Out). Enter the quantity you're taking.", shortcut: "1" },
-    receive: { title: "Receive Mode", desc: "Add incoming stock to a queue. Fill in lot and expiry, scan items, then commit the entire batch at once.", shortcut: "2" },
-    count: { title: "Count Mode", desc: "Perform a stocktake. Enter the physical count you see on the shelf. LabStock adjusts inventory to match.", shortcut: "3" },
-    move: { title: "Move Mode", desc: "Change an item's storage location. Set the destination location first (scan a LOC: label or type it), then scan items.", shortcut: "4" },
+    use: { title: "Use Mode", desc: "Remove existing stock from inventory. Items are consumed using FEFO (First Expired, First Out). Only registered items with stock can be used.", shortcut: "1" },
+    receive: { title: "Receive Mode", desc: "Add incoming stock to a queue. Fill in lot and expiry, scan items, then commit the entire batch at once. New barcodes are auto-registered.", shortcut: "2" },
+    count: { title: "Count Mode", desc: "Perform a stocktake. Enter the physical count you see on the shelf. LabStock adjusts inventory to match. Only works with registered items.", shortcut: "3" },
+    move: { title: "Move Mode", desc: "Change an item's storage location. Set the destination location first (scan a LOC: label or type it), then scan items. Only works with registered items.", shortcut: "4" },
   };
 
   return (
@@ -453,6 +496,25 @@ export default function ScanPage() {
                     onChange={(e) => setQty(e.target.value)}
                     className="h-11 tabnum"
                   />
+                  {mode === "receive" && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {[1, 5, 10, 25, 50, 100].map((n) => (
+                        <button
+                          key={n}
+                          type="button"
+                          onClick={() => setQty(String(n))}
+                          className={`px-2 py-0.5 text-xs rounded border transition-colors ${
+                            qty === String(n)
+                              ? "bg-[color:var(--ls-primary)] text-white border-[color:var(--ls-primary)]"
+                              : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                          }`}
+                          data-testid={`qty-preset-${n}`}
+                        >
+                          {n}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               {showLotExpiry && (
@@ -467,6 +529,18 @@ export default function ScanPage() {
                       placeholder="Lot #"
                       className="h-11 font-mono"
                     />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const d = new Date();
+                        const ts = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+                        setLot(`LOT-${ts}`);
+                      }}
+                      className="text-xs text-[color:var(--ls-primary)] hover:underline"
+                      data-testid="lot-generate-button"
+                    >
+                      Generate lot # from today
+                    </button>
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="expiry" className="flex items-center gap-1">
@@ -480,6 +554,29 @@ export default function ScanPage() {
                       onChange={(e) => setExpiry(e.target.value)}
                       className="h-11"
                     />
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {[
+                        { label: "30d", days: 30 },
+                        { label: "90d", days: 90 },
+                        { label: "6mo", days: 182 },
+                        { label: "1yr", days: 365 },
+                        { label: "2yr", days: 730 },
+                      ].map(({ label, days }) => (
+                        <button
+                          key={label}
+                          type="button"
+                          onClick={() => {
+                            const d = new Date();
+                            d.setDate(d.getDate() + days);
+                            setExpiry(d.toISOString().split("T")[0]);
+                          }}
+                          className="px-2 py-0.5 text-xs rounded border bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 transition-colors"
+                          data-testid={`expiry-preset-${label}`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </>
               )}
