@@ -534,12 +534,16 @@ async def dashboard(user: dict = Depends(get_current_user)):
     item_ids = [it["id"] for it in items]
     usage_rates = await usage_rates_batch(item_ids)
 
-    # Fetch last-used and used-today for all items in batch
+    # Fetch last-used, used-today, last-added, 30d usage, and total consumed for all items in batch
     now = datetime.now(timezone.utc)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+    cutoff_30d = (now - timedelta(days=30)).isoformat()
 
     last_used_map = {}
     used_today_map = {}
+    last_added_map = {}
+    used_30d_map = {}
+    total_consumed_map = {}
 
     if item_ids:
         last_used_pipeline = [
@@ -556,6 +560,28 @@ async def dashboard(user: dict = Depends(get_current_user)):
         ]
         for doc in await db.log.aggregate(used_today_pipeline).to_list(100000):
             used_today_map[doc["_id"]] = doc["total"]
+
+        last_added_pipeline = [
+            {"$match": {"item_id": {"$in": item_ids}, "action": "in"}},
+            {"$sort": {"ts": -1}},
+            {"$group": {"_id": "$item_id", "last_added": {"$first": "$ts"}}},
+        ]
+        for doc in await db.log.aggregate(last_added_pipeline).to_list(100000):
+            last_added_map[doc["_id"]] = doc["last_added"]
+
+        used_30d_pipeline = [
+            {"$match": {"item_id": {"$in": item_ids}, "action": "use", "ts": {"$gte": cutoff_30d}}},
+            {"$group": {"_id": "$item_id", "total": {"$sum": "$qty"}}},
+        ]
+        for doc in await db.log.aggregate(used_30d_pipeline).to_list(100000):
+            used_30d_map[doc["_id"]] = doc["total"]
+
+        total_consumed_pipeline = [
+            {"$match": {"item_id": {"$in": item_ids}, "action": "use"}},
+            {"$group": {"_id": "$item_id", "total": {"$sum": "$qty"}}},
+        ]
+        for doc in await db.log.aggregate(total_consumed_pipeline).to_list(100000):
+            total_consumed_map[doc["_id"]] = doc["total"]
 
     total_value = 0.0
     reorder = []
@@ -582,6 +608,31 @@ async def dashboard(user: dict = Depends(get_current_user)):
         else:
             days_in_inventory = None
 
+        # Nearest expiry lot
+        nearest_expiry_lot = None
+        nearest_expiry_days = None
+        for l in lots:
+            if l.get("qty", 0) <= 0:
+                continue
+            exp = l.get("expiry", "")
+            if not exp:
+                continue
+            d = days_until(exp)
+            if d is not None:
+                if nearest_expiry_days is None or d < nearest_expiry_days:
+                    nearest_expiry_days = d
+                    nearest_expiry_lot = l.get("lot", "")
+
+        # Lot count (distinct lots with qty > 0)
+        lot_count = sum(1 for l in lots if l.get("qty", 0) > 0)
+
+        # 30d usage and total consumed
+        used_30d = used_30d_map.get(it["id"], 0)
+        total_consumed = total_consumed_map.get(it["id"], 0)
+
+        # Stock turnover: daily usage rate as % of on-hand stock
+        turnover = round((rate / total * 100), 2) if total > 0 and rate > 0 else None
+
         items_out.append({
             **it, "total": total, "value": round(value, 2),
             "usage_rate": round(rate, 3), "days_left": days_left,
@@ -589,6 +640,13 @@ async def dashboard(user: dict = Depends(get_current_user)):
             "days_in_inventory": days_in_inventory,
             "last_used_on": last_used_map.get(it["id"]),
             "used_today": used_today_map.get(it["id"], 0),
+            "last_added_on": last_added_map.get(it["id"]),
+            "nearest_expiry_lot": nearest_expiry_lot,
+            "nearest_expiry_days": nearest_expiry_days,
+            "lot_count": lot_count,
+            "used_30d": used_30d,
+            "total_consumed": total_consumed,
+            "turnover": turnover,
         })
 
         if it.get("min_stock", 0) > 0 and total < it["min_stock"]:

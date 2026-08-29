@@ -389,13 +389,18 @@ export default function Dashboard() {
                   <TableRow className="bg-[color:var(--ls-surface-2)]">
                     <TableHead>Item</TableHead>
                     <TableHead className="text-right">On hand</TableHead>
-                    <TableHead className="text-right">Min</TableHead>
+                    <TableHead className="text-right">Lots</TableHead>
                     <TableHead>Location</TableHead>
+                    <TableHead className="text-right">Min</TableHead>
                     <TableHead className="text-right">Days in inv.</TableHead>
+                    <TableHead className="text-right">Last added</TableHead>
                     <TableHead className="text-right">Last used</TableHead>
                     <TableHead className="text-right">Used today</TableHead>
+                    <TableHead className="text-right">30d used</TableHead>
+                    <TableHead className="text-right">Total used</TableHead>
+                    <TableHead className="text-right">Turnover</TableHead>
+                    <TableHead className="text-right">Expiring lot</TableHead>
                     <TableHead className="text-right">Cost</TableHead>
-                    <TableHead className="text-right">Value</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Edit</TableHead>
                   </TableRow>
@@ -408,13 +413,24 @@ export default function Dashboard() {
                         <div className="text-[11px] text-slate-500 font-mono">{it.barcode}</div>
                       </TableCell>
                       <TableCell className="text-right tabnum">{it.total} {it.unit}</TableCell>
-                      <TableCell className="text-right tabnum">{it.min_stock}</TableCell>
+                      <TableCell className="text-right tabnum">{it.lot_count}</TableCell>
                       <TableCell>{it.location || "—"}</TableCell>
+                      <TableCell className="text-right tabnum">{it.min_stock}</TableCell>
                       <TableCell className="text-right tabnum">{it.days_in_inventory != null ? `${it.days_in_inventory}d` : "—"}</TableCell>
+                      <TableCell className="text-right tabnum text-xs">{formatDate(it.last_added_on)}</TableCell>
                       <TableCell className="text-right tabnum text-xs">{formatDate(it.last_used_on)}</TableCell>
                       <TableCell className="text-right tabnum">{it.used_today > 0 ? it.used_today : "—"}</TableCell>
+                      <TableCell className="text-right tabnum">{it.used_30d > 0 ? it.used_30d : "—"}</TableCell>
+                      <TableCell className="text-right tabnum">{it.total_consumed > 0 ? it.total_consumed : "—"}</TableCell>
+                      <TableCell className="text-right tabnum">{it.turnover != null ? `${it.turnover}%` : "—"}</TableCell>
+                      <TableCell className="text-right tabnum text-xs">
+                        {it.nearest_expiry_lot ? (
+                          <span className={it.nearest_expiry_days <= 30 ? "text-red-600 font-medium" : it.nearest_expiry_days <= 60 ? "text-amber-600" : ""}>
+                            {it.nearest_expiry_lot} ({it.nearest_expiry_days}d)
+                          </span>
+                        ) : "—"}
+                      </TableCell>
                       <TableCell className="text-right tabnum">{money(it.cost)}</TableCell>
-                      <TableCell className="text-right tabnum">{money(it.value)}</TableCell>
                       <TableCell>
                         {it.low_stock ? <StatusBadge variant="low">Low</StatusBadge> : <StatusBadge variant="ok">OK</StatusBadge>}
                       </TableCell>
@@ -433,7 +449,7 @@ export default function Dashboard() {
                     </TableRow>
                   ))}
                   {(!loading && items.length === 0) && (
-                    <TableRow><TableCell colSpan={11} className="text-center text-slate-400 py-8">No items yet. Use the Scan page to receive stock or import a CSV.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={16} className="text-center text-slate-400 py-8">No items yet. Use the Scan page to receive stock or import a CSV.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
