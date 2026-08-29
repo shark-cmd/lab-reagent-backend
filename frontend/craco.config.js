@@ -149,4 +149,13 @@ const configureDevServer = webpackConfig.devServer;
 webpackConfig.devServer = (devServerConfig) =>
   makeDevServerV5Compatible(configureDevServer(devServerConfig));
 
+webpackConfig.jest = {
+  configure: {
+    resetMocks: false,
+    moduleNameMapper: {
+      "^@/(.*)$": "<rootDir>/src/$1",
+    },
+  },
+};
+
 module.exports = webpackConfig;
