@@ -28,7 +28,11 @@ import {
   CheckCircle2,
   ScanLine,
   Loader2,
+  ChevronDown,
+  Check,
 } from "lucide-react";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
 import { toast } from "sonner";
 
 const MODES = [
@@ -72,6 +76,13 @@ export default function ScanPage() {
   // register dialog
   const [regOpen, setRegOpen] = useState(false);
   const [regData, setRegData] = useState(null);
+  const [regAdvanced, setRegAdvanced] = useState(false);
+  const regNameRef = useRef(null);
+
+  // item picker (Use mode)
+  const [items, setItems] = useState([]);
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   const inputRef = useRef(null);
 
@@ -120,6 +131,22 @@ export default function ScanPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Load items list for Use mode picker
+  useEffect(() => {
+    if (mode !== "use") return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const { data } = await api.get("/items");
+        if (!cancelled) setItems(data || []);
+      } catch {
+        // silently fail — barcode-only fallback still works
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [mode]);
 
   useEffect(() => {
     focusInput();
@@ -292,9 +319,6 @@ export default function ScanPage() {
     processBarcode(barcode);
   };
 
-  const [regAdvanced, setRegAdvanced] = useState(false);
-  const regNameRef = useRef(null);
-
   const submitRegister = async () => {
     if (!regData?.name?.trim()) {
       toast.error("Item name is required");
@@ -454,6 +478,64 @@ export default function ScanPage() {
         {/* Scan form */}
         <Card className="lg:col-span-2 p-5 border-[color:var(--ls-border)]">
           <form onSubmit={onSubmit} className="space-y-4">
+            {mode === "use" && items.length > 0 && (
+              <div className="space-y-1.5">
+                <Label>Pick from inventory</Label>
+                <Popover open={itemPickerOpen} onOpenChange={setItemPickerOpen}>
+                  <PopoverTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex h-11 w-full items-center justify-between rounded-md border border-input bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      data-testid="item-picker-trigger"
+                    >
+                      {selectedItem ? (
+                        <span className="flex items-center gap-2 truncate">
+                          <span className="font-medium truncate">{selectedItem.name}</span>
+                          <span className="text-muted-foreground text-xs shrink-0">
+                            {selectedItem.total} {selectedItem.unit || "unit"}{selectedItem.total !== 1 ? "s" : ""} available
+                          </span>
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">Search items by name or barcode…</span>
+                      )}
+                      <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search items…" />
+                      <CommandList>
+                        <CommandEmpty>No items found.</CommandEmpty>
+                        <CommandGroup>
+                          {items.map((it) => (
+                            <CommandItem
+                              key={it.id}
+                              value={`${it.name} ${it.barcode}`}
+                              onSelect={() => {
+                                setSelectedItem(it);
+                                setBarcode(it.barcode);
+                                setItemPickerOpen(false);
+                                setTimeout(() => inputRef.current?.focus(), 50);
+                              }}
+                              data-testid={`item-picker-option-${it.barcode}`}
+                            >
+                              <Check className={`h-4 w-4 mr-2 ${selectedItem?.id === it.id ? "opacity-100" : "opacity-0"}`} />
+                              <span className="flex-1 truncate">
+                                <span className="font-medium">{it.name}</span>
+                                <span className="text-muted-foreground ml-2 text-xs">{it.barcode}</span>
+                              </span>
+                              <span className="text-xs text-muted-foreground shrink-0">
+                                {it.total} {it.unit || "unit"}{it.total !== 1 ? "s" : ""}
+                              </span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label htmlFor="barcode">Barcode</Label>
               <div className="flex gap-2">
@@ -501,9 +583,9 @@ export default function ScanPage() {
                     onChange={(e) => setQty(e.target.value)}
                     className="h-11 tabnum"
                   />
-                  {mode === "receive" && (
+                  {(mode === "use" || mode === "receive") && (
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {[1, 5, 10, 25, 50, 100].map((n) => (
+                      {(mode === "use" ? [1, 2, 5, 10] : [1, 5, 10, 25, 50, 100]).map((n) => (
                         <button
                           key={n}
                           type="button"

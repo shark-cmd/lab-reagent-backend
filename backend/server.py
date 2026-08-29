@@ -500,6 +500,28 @@ async def delete_item(item_id: str, admin: dict = Depends(require_admin)):
     return {"ok": True}
 
 
+# ----------------------- Items (lightweight list) -----------------------
+@api.get("/items")
+async def list_items(user: dict = Depends(get_current_user)):
+    pipeline = [
+        {"$lookup": {
+            "from": "lots",
+            "localField": "id",
+            "foreignField": "item_id",
+            "as": "_lots",
+        }},
+        {"$addFields": {
+            "total": {"$sum": "$_lots.qty"},
+        }},
+        {"$project": {
+            "_id": 0, "id": 1, "barcode": 1, "name": 1, "unit": 1,
+            "min_stock": 1, "location": 1, "storage": 1, "cost": 1, "total": 1,
+        }},
+        {"$sort": {"name": 1}},
+    ]
+    return await db.items.aggregate(pipeline).to_list(100000)
+
+
 # ----------------------- Dashboard -----------------------
 @api.get("/dashboard")
 async def dashboard(user: dict = Depends(get_current_user)):
