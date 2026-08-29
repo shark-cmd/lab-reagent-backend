@@ -292,9 +292,13 @@ export default function ScanPage() {
     processBarcode(barcode);
   };
 
+  const [regAdvanced, setRegAdvanced] = useState(false);
+  const regNameRef = useRef(null);
+
   const submitRegister = async () => {
     if (!regData?.name?.trim()) {
       toast.error("Item name is required");
+      regNameRef.current?.focus();
       return;
     }
     setBusy(true);
@@ -324,6 +328,7 @@ export default function ScanPage() {
       });
       setRegOpen(false);
       setRegData(null);
+      setRegAdvanced(false);
       resetAfter();
     } catch (err) {
       toast.error(err?.response?.data?.detail || "Registration failed");
@@ -695,7 +700,7 @@ export default function ScanPage() {
       />
 
       {/* Unknown barcode register dialog */}
-      <Dialog open={regOpen} onOpenChange={(o) => !o && (setRegOpen(false), setRegData(null), focusInput())}>
+      <Dialog open={regOpen} onOpenChange={(o) => !o && (setRegOpen(false), setRegData(null), setRegAdvanced(false), focusInput())}>
         <DialogContent className="max-w-lg" data-testid="unknown-barcode-dialog">
           <DialogHeader>
             <DialogTitle>Register new item</DialogTitle>
@@ -705,53 +710,69 @@ export default function ScanPage() {
             </DialogDescription>
           </DialogHeader>
           {regData && (
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div className="sm:col-span-2 space-y-1.5">
+            <div className="space-y-3">
+              <div className="space-y-1.5">
                 <Label>Item name *</Label>
                 <Input
+                  ref={regNameRef}
                   data-testid="register-name-input"
                   value={regData.name}
                   onChange={(e) => setRegData({ ...regData, name: e.target.value })}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); submitRegister(); } }}
                   placeholder="e.g. Glucose Reagent"
                   autoFocus
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label>Unit</Label>
-                <Input value={regData.unit} onChange={(e) => setRegData({ ...regData, unit: e.target.value })} placeholder="mL, tests, box" />
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Qty</Label>
+                  <Input data-testid="register-qty-input" type="number" step="any" min="0" value={regData.qty} onChange={(e) => setRegData({ ...regData, qty: e.target.value })} className="tabnum" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Lot</Label>
+                  <Input value={regData.lot} onChange={(e) => setRegData({ ...regData, lot: e.target.value })} className="font-mono" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Expiry</Label>
+                  <Input type="date" value={regData.expiry} onChange={(e) => setRegData({ ...regData, expiry: e.target.value })} />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label>Min stock</Label>
-                <Input type="number" step="any" value={regData.min_stock} onChange={(e) => setRegData({ ...regData, min_stock: e.target.value })} className="tabnum" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Initial qty</Label>
-                <Input data-testid="register-qty-input" type="number" step="any" value={regData.qty} onChange={(e) => setRegData({ ...regData, qty: e.target.value })} className="tabnum" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Unit cost</Label>
-                <Input type="number" step="any" value={regData.cost} onChange={(e) => setRegData({ ...regData, cost: e.target.value })} className="tabnum" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Lot</Label>
-                <Input value={regData.lot} onChange={(e) => setRegData({ ...regData, lot: e.target.value })} className="font-mono" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Expiry</Label>
-                <Input type="date" value={regData.expiry} onChange={(e) => setRegData({ ...regData, expiry: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Location</Label>
-                <Input value={regData.location} onChange={(e) => setRegData({ ...regData, location: e.target.value })} placeholder="Cold Room / Fridge 1" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Storage</Label>
-                <Input value={regData.storage} onChange={(e) => setRegData({ ...regData, storage: e.target.value })} placeholder="Ambient / 2-8°C / -20°C" />
-              </div>
+              <button
+                type="button"
+                className="text-xs text-[color:var(--ls-primary)] hover:underline"
+                onClick={() => setRegAdvanced((v) => !v)}
+                data-testid="register-advanced-toggle"
+              >
+                {regAdvanced ? "Hide" : "More options"} (unit, location, cost…)
+              </button>
+              {regAdvanced && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Unit</Label>
+                    <Input value={regData.unit} onChange={(e) => setRegData({ ...regData, unit: e.target.value })} placeholder="mL, tests, box" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Location</Label>
+                    <Input value={regData.location} onChange={(e) => setRegData({ ...regData, location: e.target.value })} placeholder="Cold Room / Fridge 1" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Min stock</Label>
+                    <Input type="number" step="any" value={regData.min_stock} onChange={(e) => setRegData({ ...regData, min_stock: e.target.value })} className="tabnum" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Unit cost</Label>
+                    <Input type="number" step="any" value={regData.cost} onChange={(e) => setRegData({ ...regData, cost: e.target.value })} className="tabnum" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Storage</Label>
+                    <Input value={regData.storage} onChange={(e) => setRegData({ ...regData, storage: e.target.value })} placeholder="Ambient / 2-8°C / -20°C" />
+                  </div>
+                </div>
+              )}
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setRegOpen(false); setRegData(null); focusInput(); }}>
+            <Button variant="outline" onClick={() => { setRegOpen(false); setRegData(null); setRegAdvanced(false); focusInput(); }}>
               Cancel
             </Button>
             <Button onClick={submitRegister} disabled={busy} data-testid="unknown-barcode-register-submit">
