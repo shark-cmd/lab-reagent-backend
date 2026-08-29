@@ -43,6 +43,16 @@ import { toast } from "sonner";
 
 const money = (n) => `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const formatDate = (iso) => {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  } catch {
+    return "—";
+  }
+};
+
 const KpiCard = ({ icon: Icon, label, value, sub, tint, testid }) => (
   <Card className="p-4 sm:p-5 border-[color:var(--ls-border)]" data-testid={testid}>
     <div className="flex items-start justify-between">
@@ -381,7 +391,9 @@ export default function Dashboard() {
                     <TableHead className="text-right">On hand</TableHead>
                     <TableHead className="text-right">Min</TableHead>
                     <TableHead>Location</TableHead>
-                    <TableHead>Storage</TableHead>
+                    <TableHead className="text-right">Days in inv.</TableHead>
+                    <TableHead className="text-right">Last used</TableHead>
+                    <TableHead className="text-right">Used today</TableHead>
                     <TableHead className="text-right">Cost</TableHead>
                     <TableHead className="text-right">Value</TableHead>
                     <TableHead>Status</TableHead>
@@ -398,7 +410,9 @@ export default function Dashboard() {
                       <TableCell className="text-right tabnum">{it.total} {it.unit}</TableCell>
                       <TableCell className="text-right tabnum">{it.min_stock}</TableCell>
                       <TableCell>{it.location || "—"}</TableCell>
-                      <TableCell>{it.storage || "—"}</TableCell>
+                      <TableCell className="text-right tabnum">{it.days_in_inventory != null ? `${it.days_in_inventory}d` : "—"}</TableCell>
+                      <TableCell className="text-right tabnum text-xs">{formatDate(it.last_used_on)}</TableCell>
+                      <TableCell className="text-right tabnum">{it.used_today > 0 ? it.used_today : "—"}</TableCell>
                       <TableCell className="text-right tabnum">{money(it.cost)}</TableCell>
                       <TableCell className="text-right tabnum">{money(it.value)}</TableCell>
                       <TableCell>
@@ -419,7 +433,7 @@ export default function Dashboard() {
                     </TableRow>
                   ))}
                   {(!loading && items.length === 0) && (
-                    <TableRow><TableCell colSpan={9} className="text-center text-slate-400 py-8">No items yet. Use the Scan page to receive stock or import a CSV.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={11} className="text-center text-slate-400 py-8">No items yet. Use the Scan page to receive stock or import a CSV.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>

@@ -534,6 +534,29 @@ async def dashboard(user: dict = Depends(get_current_user)):
     item_ids = [it["id"] for it in items]
     usage_rates = await usage_rates_batch(item_ids)
 
+    # Fetch last-used and used-today for all items in batch
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+
+    last_used_map = {}
+    used_today_map = {}
+
+    if item_ids:
+        last_used_pipeline = [
+            {"$match": {"item_id": {"$in": item_ids}, "action": "use"}},
+            {"$sort": {"ts": -1}},
+            {"$group": {"_id": "$item_id", "last_used": {"$first": "$ts"}}},
+        ]
+        for doc in await db.log.aggregate(last_used_pipeline).to_list(100000):
+            last_used_map[doc["_id"]] = doc["last_used"]
+
+        used_today_pipeline = [
+            {"$match": {"item_id": {"$in": item_ids}, "action": "use", "ts": {"$gte": today_start}}},
+            {"$group": {"_id": "$item_id", "total": {"$sum": "$qty"}}},
+        ]
+        for doc in await db.log.aggregate(used_today_pipeline).to_list(100000):
+            used_today_map[doc["_id"]] = doc["total"]
+
     total_value = 0.0
     reorder = []
     expiring = []
@@ -548,10 +571,24 @@ async def dashboard(user: dict = Depends(get_current_user)):
         rate = usage_rates.get(it["id"], 0.0)
         days_left = round(total / rate, 1) if rate > 0 else None
 
+        # Days in inventory
+        created = it.get("created_at", "")
+        if created:
+            try:
+                created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                days_in_inventory = (now - created_dt).days
+            except:
+                days_in_inventory = None
+        else:
+            days_in_inventory = None
+
         items_out.append({
             **it, "total": total, "value": round(value, 2),
             "usage_rate": round(rate, 3), "days_left": days_left,
             "low_stock": it.get("min_stock", 0) > 0 and total < it.get("min_stock", 0),
+            "days_in_inventory": days_in_inventory,
+            "last_used_on": last_used_map.get(it["id"]),
+            "used_today": used_today_map.get(it["id"], 0),
         })
 
         if it.get("min_stock", 0) > 0 and total < it["min_stock"]:
