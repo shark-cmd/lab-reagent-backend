@@ -143,7 +143,7 @@ export default function Reports() {
               </Card>
               <Card className="p-4 border-[color:var(--ls-border)]">
                 <div className="text-xs uppercase tracking-wide text-slate-500">Active reagents</div>
-                <div className="mt-1 font-heading text-2xl font-bold text-slate-900 tabnum>{loading ? "-" : trends?.active_reagents ?? 0}</div>
+                <div className="mt-1 font-heading text-2xl font-bold text-slate-900 tabnum">{loading ? "-" : trends?.active_reagents ?? 0}</div>
                 <div className="text-xs text-slate-500">with usage</div>
               </Card>
             </div>
