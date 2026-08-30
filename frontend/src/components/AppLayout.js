@@ -107,7 +107,7 @@ export default function AppLayout() {
       </aside>
 
       {/* Topbar - mobile */}
-      <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between border-b border-[color:var(--ls-border)] bg-white/90 backdrop-blur px-4 py-3">
+      <header className="lg:hidden sticky top-0 z-30 flex items-center justify-between border-b border-[color:var(--ls-border)] bg-white px-4 py-3">
         <Brand />
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>

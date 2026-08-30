@@ -138,12 +138,12 @@ export default function Reports() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <Card className="p-4 border-[color:var(--ls-border)]" data-testid="trends-total-used">
                 <div className="text-xs uppercase tracking-wide text-slate-500">Total consumed</div>
-                <div className="mt-1 font-heading text-2xl font-bold text-slate-900 tabnum">{loading ? "—" : trends?.total_used ?? 0}</div>
+                <div className="mt-1 font-heading text-2xl font-bold text-slate-900 tabnum">{loading ? "-" : trends?.total_used ?? 0}</div>
                 <div className="text-xs text-slate-500">last {days} days</div>
               </Card>
               <Card className="p-4 border-[color:var(--ls-border)]">
                 <div className="text-xs uppercase tracking-wide text-slate-500">Active reagents</div>
-                <div className="mt-1 font-heading text-2xl font-bold text-slate-900 tabnum">{loading ? "—" : trends?.active_reagents ?? 0}</div>
+                <div className="mt-1 font-heading text-2xl font-bold text-slate-900 tabnum>{loading ? "-" : trends?.active_reagents ?? 0}</div>
                 <div className="text-xs text-slate-500">with usage</div>
               </Card>
             </div>
@@ -205,7 +205,7 @@ export default function Reports() {
           <div className="rounded-lg border border-[#FFD7A8] bg-[#FFF4E6] p-3 flex items-start gap-2 text-sm text-[#B45309]">
             <TriangleAlert className="h-4 w-4 mt-0.5 shrink-0" />
             <div>
-              <span className="font-semibold">Waste risk forecast.</span> We project FEFO consumption against each reagent's recent usage rate to flag stock likely to <span className="font-medium">expire before it's used</span> — so you can slow ordering or redistribute it.
+              <span className="font-semibold">Waste risk forecast.</span> We project FEFO consumption against each reagent's recent usage rate to flag stock likely to <span className="font-medium">expire before it's used</span>, so you can slow ordering or redistribute it.
             </div>
           </div>
 
@@ -255,7 +255,7 @@ export default function Reports() {
                           <div className="font-medium text-slate-800">{r.name}</div>
                           <div className="text-[11px] text-slate-500 font-mono">{r.barcode}</div>
                         </TableCell>
-                        <TableCell className="font-mono text-sm">{r.lot || "—"}</TableCell>
+                        <TableCell className="font-mono text-sm">{r.lot || "-"}</TableCell>
                         <TableCell className="font-mono text-sm">{r.expiry}</TableCell>
                         <TableCell className="text-right tabnum">{r.days_to_expiry}</TableCell>
                         <TableCell className="text-right tabnum">{r.qty} {r.unit}</TableCell>
@@ -267,7 +267,7 @@ export default function Reports() {
                     );
                   })}
                   {(forecast && (forecast.rows || []).length === 0) && (
-                    <TableRow><TableCell colSpan={9} className="text-center text-slate-400 py-8">No waste risk detected — consumption keeps pace with expiries.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={9} className="text-center text-slate-400 py-8">No waste risk detected, consumption keeps pace with expiries.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -334,7 +334,7 @@ export default function Reports() {
                       </TableRow>
                     ))}
                     {(digest?.low_stock || []).length === 0 && (
-                      <TableRow><TableCell colSpan={4} className="text-center text-slate-400 py-6">All good — nothing to reorder.</TableCell></TableRow>
+                      <TableRow><TableCell colSpan={4} className="text-center text-slate-400 py-6">All good, nothing to reorder.</TableCell></TableRow>
                     )}
                   </TableBody>
                 </Table>

@@ -15,7 +15,7 @@ import {
 import { toast } from "sonner";
 
 const COLS = [
-  { key: "barcode", label: "Barcode", w: "150px", hint: "The code your scanner reads. Required — it uniquely identifies the product.", req: true, mono: true },
+  { key: "barcode", label: "Barcode", w: "150px", hint: "The code your scanner reads. Required, it uniquely identifies the product.", req: true, mono: true },
   { key: "name", label: "Name", w: "180px", hint: "Human-friendly reagent/QC name, e.g. 'Glucose Reagent'. Required for new items.", req: true },
   { key: "qty", label: "Qty", w: "80px", hint: "How many units you are adding to stock right now.", type: "number" },
   { key: "unit", label: "Unit", w: "80px", hint: "Unit of measure, e.g. mL, tests, box, vial." },
@@ -24,7 +24,7 @@ const COLS = [
   { key: "min_stock", label: "Min stock", w: "100px", hint: "Reorder threshold. If total on-hand drops below this, it shows in reorder alerts.", type: "number" },
   { key: "location", label: "Location", w: "150px", hint: "Where it lives, e.g. 'Cold Room / Fridge 1'." },
   { key: "storage", label: "Storage", w: "110px", hint: "Storage condition, e.g. Ambient, 2-8°C, -20°C." },
-  { key: "cost", label: "Unit cost", w: "90px", hint: "Cost per unit — used to compute inventory value.", type: "number" },
+  { key: "cost", label: "Unit cost", w: "90px", hint: "Cost per unit, used to compute inventory value.", type: "number" },
 ];
 
 const blankRow = () => ({ barcode: "", name: "", qty: "", unit: "unit", lot: "", expiry: "", min_stock: "", location: "", storage: "Ambient", cost: "" });
@@ -86,7 +86,7 @@ export default function BulkAdd() {
     }
     const missingName = valid.filter((r) => !r.name.trim());
     if (missingName.length > 0) {
-      toast.warning(`${missingName.length} row(s) have no name — they'll be saved with a generated name.`);
+      toast.warning(`${missingName.length} row(s) have no name, they'll be saved with a generated name.`);
     }
     setBusy(true);
     try {
@@ -136,7 +136,7 @@ export default function BulkAdd() {
       </div>
 
       <InfoBanner id="bulkadd" title="How Bulk Add works:" testid="bulk-info-banner">
-        Fill one row per product. Only <b>Barcode</b> and <b>Name</b> are needed to create an item — everything else is optional.
+        Fill one row per product. Only <b>Barcode</b> and <b>Name</b> are needed to create an item; everything else is optional.
         If a barcode already exists, its stock is topped up (a new lot is created for the lot/expiry you enter). Hover the <b>?</b> on any
         column for tips, or click <b>Paste from Excel</b> to drop in a whole spreadsheet at once. Nothing is saved until you press
         <b> Add all to inventory</b>.

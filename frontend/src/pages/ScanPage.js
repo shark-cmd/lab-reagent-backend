@@ -141,7 +141,7 @@ export default function ScanPage() {
         const { data } = await api.get("/items");
         if (!cancelled) setItems(data || []);
       } catch {
-        // silently fail — barcode-only fallback still works
+        // silently fail, barcode-only fallback still works
       }
     };
     load();
@@ -191,11 +191,11 @@ export default function ScanPage() {
     }
     const { data } = await api.post("/use", { barcode: code, qty: n });
     if (!data.ok) {
-      toast.warning(`Short by ${data.shortfall} — only ${data.total} left`, {
+      toast.warning(`Short by ${data.shortfall}, only ${data.total} left`, {
         description: data.item_name,
       });
     } else {
-      toast.success(`Used ${n} — ${data.item_name}`, {
+      toast.success(`Used ${n}, ${data.item_name}`, {
         description: `Remaining: ${data.total}`,
       });
     }
@@ -720,7 +720,7 @@ export default function ScanPage() {
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-slate-800 truncate">{q.name}</div>
                         <div className="text-[11px] text-slate-500 font-mono truncate">
-                          {q.barcode} · lot {q.lot || "—"} · exp {q.expiry || "—"}
+                          {q.barcode} · lot {q.lot || "-"} · exp {q.expiry || "-"}
                         </div>
                       </div>
                       <div className="flex items-center gap-3">

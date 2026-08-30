@@ -21,7 +21,7 @@ import { toast } from "sonner";
 
 const money = (n) => `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const STATUS_VARIANT = { draft: "neutral", ordered: "expiring90", received: "ok", cancelled: "expired" };
-const fmt = (ts) => (ts ? new Date(ts).toLocaleDateString() : "—");
+const fmt = (ts) => (ts ? new Date(ts).toLocaleDateString() : "-");
 
 export default function PurchaseOrders() {
   const { user } = useAuth();
@@ -65,7 +65,7 @@ export default function PurchaseOrders() {
       setSupplierEmail("");
       setNotes("");
       setCreateOpen(true);
-      if (suggested.length === 0) toast.info("No reorder alerts — you can still add lines manually below.");
+      if (suggested.length === 0) toast.info("No reorder alerts, you can still add lines manually below.");
     } catch {
       toast.error("Failed to load reorder suggestions");
     }
@@ -125,7 +125,7 @@ export default function PurchaseOrders() {
     if (!window.confirm("Receive this PO and add ordered quantities into stock?")) return;
     try {
       const { data } = await api.post(`/purchase-orders/${po.id}/receive`);
-      toast.success("PO received — stock updated");
+      toast.success("PO received, stock updated");
       setViewPo(data);
       load();
     } catch (e) {
@@ -183,7 +183,7 @@ export default function PurchaseOrders() {
     <div className="space-y-5">
       <InfoBanner id="po" title="Purchase orders in 3 steps:" testid="po-info-banner">
         Click <b>New PO from reorder</b> to auto-fill a draft from items that need restocking (edit quantities, cost and supplier as needed).
-        <b> Mark ordered</b> once you've sent it to the supplier, then <b>Receive into stock</b> when the delivery arrives — that adds the quantities back into inventory.
+        <b> Mark ordered</b> once you've sent it to the supplier, then <b>Receive into stock</b> when the delivery arrives; that adds the quantities back into inventory.
         You can also download a <b>PDF</b> or email it to the supplier.
       </InfoBanner>
       <div className="flex items-center justify-between flex-wrap gap-3 no-print">
@@ -221,7 +221,7 @@ export default function PurchaseOrders() {
               {pos.map((po) => (
                 <TableRow key={po.id} data-testid="po-row">
                   <TableCell className="font-mono text-sm font-medium">{po.po_number}</TableCell>
-                  <TableCell>{po.supplier || "—"}</TableCell>
+                  <TableCell>{po.supplier || "-"}</TableCell>
                   <TableCell className="text-right tabnum">{po.lines?.length || 0}</TableCell>
                   <TableCell className="text-right tabnum">{money(po.total_cost)}</TableCell>
                   <TableCell>{fmt(po.created_at)}</TableCell>
@@ -334,8 +334,8 @@ export default function PurchaseOrders() {
                   <div className="text-2xl font-bold">Purchase Order {viewPo.po_number}</div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-sm mb-3">
-                  <div><span className="text-slate-500">Supplier:</span> <span className="font-medium">{viewPo.supplier || "—"}</span></div>
-                  <div><span className="text-slate-500">Email:</span> {viewPo.supplier_email || "—"}</div>
+                  <div><span className="text-slate-500">Supplier:</span> <span className="font-medium">{viewPo.supplier || "-"}</span></div>
+                  <div><span className="text-slate-500">Email:</span> {viewPo.supplier_email || "-"}</div>
                   <div><span className="text-slate-500">Created:</span> {fmt(viewPo.created_at)} by {viewPo.created_by}</div>
                   <div><span className="text-slate-500">Ordered:</span> {fmt(viewPo.ordered_at)}</div>
                   <div><span className="text-slate-500">Received:</span> {fmt(viewPo.received_at)}</div>
@@ -356,7 +356,7 @@ export default function PurchaseOrders() {
                       {viewPo.lines?.map((l, i) => (
                         <tr key={i} className="border-t border-slate-200">
                           <td className="p-2 font-medium">{l.name}</td>
-                          <td className="p-2 font-mono text-xs">{l.barcode || "—"}</td>
+                          <td className="p-2 font-mono text-xs">{l.barcode || "-"}</td>
                           <td className="p-2 text-right tabnum">{l.order_qty} {l.unit}</td>
                           <td className="p-2 text-right tabnum">{money(l.cost)}</td>
                           <td className="p-2 text-right tabnum">{money((l.order_qty || 0) * (l.cost || 0))}</td>

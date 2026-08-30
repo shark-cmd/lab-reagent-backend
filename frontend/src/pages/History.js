@@ -133,9 +133,9 @@ export default function History() {
                     <TableCell className="font-mono text-xs text-slate-600">{fmtTs(l.ts)}</TableCell>
                     <TableCell><StatusBadge variant={meta.variant}>{meta.label}</StatusBadge></TableCell>
                     <TableCell className="font-medium text-slate-800">{l.item_name}</TableCell>
-                    <TableCell className="font-mono text-sm">{l.lot || "—"}</TableCell>
+                    <TableCell className="font-mono text-sm">{l.lot || "-"}</TableCell>
                     <TableCell className="text-right tabnum">{l.qty || 0}</TableCell>
-                    <TableCell>{l.technician || "—"}</TableCell>
+                    <TableCell>{l.technician || "-"}</TableCell>
                     <TableCell className="text-xs text-slate-500 max-w-[280px] truncate">{l.detail}</TableCell>
                   </TableRow>
                 );

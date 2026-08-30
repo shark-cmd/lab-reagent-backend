@@ -44,12 +44,12 @@ import { toast } from "sonner";
 const money = (n) => `$${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const formatDate = (iso) => {
-  if (!iso) return "—";
+  if (!iso) return "-";
   try {
     const d = new Date(iso);
     return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
   } catch {
-    return "—";
+    return "-";
   }
 };
 
@@ -234,7 +234,7 @@ export default function Dashboard() {
         <KpiCard
           icon={Wallet}
           label="Inventory value"
-          value={loading ? "—" : money(k?.total_value)}
+          value={loading ? "-" : money(k?.total_value)}
           sub={`${k?.total_items || 0} items`}
           tint="bg-[#E6F6FA] text-[#0E7490]"
           testid="kpi-total-inventory-value"
@@ -242,7 +242,7 @@ export default function Dashboard() {
         <KpiCard
           icon={AlertTriangle}
           label="Low stock"
-          value={loading ? "—" : k?.low_stock_count ?? 0}
+          value={loading ? "-" : k?.low_stock_count ?? 0}
           sub="Needs reorder"
           tint="bg-[#FFF4E6] text-[#B45309]"
           testid="kpi-low-stock-count"
@@ -250,7 +250,7 @@ export default function Dashboard() {
         <KpiCard
           icon={CalendarClock}
           label="Expiring ≤90d"
-          value={loading ? "—" : k?.expiring_count ?? 0}
+          value={loading ? "-" : k?.expiring_count ?? 0}
           sub={`30d ${k?.expiring_buckets?.d30 || 0} · 60d ${k?.expiring_buckets?.d60 || 0} · 90d ${k?.expiring_buckets?.d90 || 0}`}
           tint="bg-[#E8F2FF] text-[#0B5CAD]"
           testid="kpi-expiring-count"
@@ -258,7 +258,7 @@ export default function Dashboard() {
         <KpiCard
           icon={Boxes}
           label="Total items"
-          value={loading ? "—" : k?.total_items ?? 0}
+          value={loading ? "-" : k?.total_items ?? 0}
           sub="Registered SKUs"
           tint="bg-[#EAF7F0] text-[#1F7A4D]"
           testid="kpi-total-items"
@@ -310,13 +310,13 @@ export default function Dashboard() {
                       <TableCell className="text-right tabnum">{r.total} {r.unit}</TableCell>
                       <TableCell className="text-right tabnum">{r.min_stock}</TableCell>
                       <TableCell className="text-right tabnum text-[#B45309] font-medium">{r.shortfall}</TableCell>
-                      <TableCell>{r.location || "—"}</TableCell>
-                      <TableCell className="text-right tabnum">{r.days_left ?? "—"}</TableCell>
+                      <TableCell>{r.location || "-"}</TableCell>
+                      <TableCell className="text-right tabnum">{r.days_left ?? "-"}</TableCell>
                       <TableCell><StatusBadge variant="low">Low</StatusBadge></TableCell>
                     </TableRow>
                   ))}
                   {(!loading && (data?.reorder || []).length === 0) && (
-                    <TableRow><TableCell colSpan={7} className="text-center text-slate-400 py-8">No reorder alerts — stock levels are healthy.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center text-slate-400 py-8">No reorder alerts, stock levels are healthy.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -347,11 +347,11 @@ export default function Dashboard() {
                         <div className="font-medium text-slate-800">{e.name}</div>
                         <div className="text-[11px] text-slate-500 font-mono">{e.barcode}</div>
                       </TableCell>
-                      <TableCell className="font-mono text-sm">{e.lot || "—"}</TableCell>
+                      <TableCell className="font-mono text-sm">{e.lot || "-"}</TableCell>
                       <TableCell className="font-mono text-sm">{e.expiry}</TableCell>
                       <TableCell className="text-right tabnum">{e.days_left}</TableCell>
                       <TableCell className="text-right tabnum">{e.qty} {e.unit}</TableCell>
-                      <TableCell>{e.location || "—"}</TableCell>
+                      <TableCell>{e.location || "-"}</TableCell>
                       <TableCell>
                         <StatusBadge variant={expiryVariant(e.days_left)}>
                           {e.days_left < 0 ? "Expired" : `≤${e.days_left <= 30 ? 30 : e.days_left <= 60 ? 60 : 90}d`}
@@ -414,21 +414,21 @@ export default function Dashboard() {
                       </TableCell>
                       <TableCell className="text-right tabnum">{it.total} {it.unit}</TableCell>
                       <TableCell className="text-right tabnum">{it.lot_count}</TableCell>
-                      <TableCell>{it.location || "—"}</TableCell>
+                      <TableCell>{it.location || "-"}</TableCell>
                       <TableCell className="text-right tabnum">{it.min_stock}</TableCell>
-                      <TableCell className="text-right tabnum">{it.days_in_inventory != null ? `${it.days_in_inventory}d` : "—"}</TableCell>
+                      <TableCell className="text-right tabnum">{it.days_in_inventory != null ? `${it.days_in_inventory}d` : "-"}</TableCell>
                       <TableCell className="text-right tabnum text-xs">{formatDate(it.last_added_on)}</TableCell>
                       <TableCell className="text-right tabnum text-xs">{formatDate(it.last_used_on)}</TableCell>
-                      <TableCell className="text-right tabnum">{it.used_today > 0 ? it.used_today : "—"}</TableCell>
-                      <TableCell className="text-right tabnum">{it.used_30d > 0 ? it.used_30d : "—"}</TableCell>
-                      <TableCell className="text-right tabnum">{it.total_consumed > 0 ? it.total_consumed : "—"}</TableCell>
-                      <TableCell className="text-right tabnum">{it.turnover != null ? `${it.turnover}%` : "—"}</TableCell>
+                      <TableCell className="text-right tabnum">{it.used_today > 0 ? it.used_today : "-"}</TableCell>
+                      <TableCell className="text-right tabnum">{it.used_30d > 0 ? it.used_30d : "-"}</TableCell>
+                      <TableCell className="text-right tabnum">{it.total_consumed > 0 ? it.total_consumed : "-"}</TableCell>
+                      <TableCell className="text-right tabnum">{it.turnover != null ? `${it.turnover}%` : "-"}</TableCell>
                       <TableCell className="text-right tabnum text-xs">
                         {it.nearest_expiry_lot ? (
                           <span className={it.nearest_expiry_days <= 30 ? "text-red-600 font-medium" : it.nearest_expiry_days <= 60 ? "text-amber-600" : ""}>
                             {it.nearest_expiry_lot} ({it.nearest_expiry_days}d)
                           </span>
-                        ) : "—"}
+                        ) : "-"}
                       </TableCell>
                       <TableCell className="text-right tabnum">{money(it.cost)}</TableCell>
                       <TableCell>

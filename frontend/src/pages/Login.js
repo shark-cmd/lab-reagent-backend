@@ -89,8 +89,8 @@ export default function Login() {
           </form>
           <div className="mt-5 rounded-lg bg-[color:var(--ls-surface-2)] p-3 text-xs text-slate-600">
             <div className="font-semibold text-slate-700 mb-1">Demo accounts</div>
-            <div>Admin — <span className="font-mono">admin</span> / <span className="font-mono">admin123</span> · PIN <span className="font-mono">1234</span></div>
-            <div>Technician — <span className="font-mono">tech</span> / <span className="font-mono">tech123</span> · PIN <span className="font-mono">5678</span></div>
+            <div>Admin: <span className="font-mono">admin</span> / <span className="font-mono">admin123</span> · PIN <span className="font-mono">1234</span></div>
+            <div>Technician: <span className="font-mono">tech</span> / <span className="font-mono">tech123</span> · PIN <span className="font-mono">5678</span></div>
           </div>
         </Card>
       </div>
