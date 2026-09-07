@@ -1,38 +1,34 @@
 # LabStock
 
-**Lab reagent & chemical inventory tracking** — scan-first, FEFO-aware, audit-ready.
+**Barcode-driven lab reagent & chemical inventory management** — scan, track, reorder.
 
-## Features
+Built for clinical labs that need FEFO lot tracking, audit trails, and real-time stock visibility.
 
-- **Scan-first workflows** — USB barcode + camera scanning (html5-qrcode); auto-register unknown barcodes on the fly
-- **FEFO lot management** — First-Expired-First-Out consumption with days-left estimates
-- **Append-only audit log** — immutable action history with operator identity + timestamp
-- **Dashboard & alerts** — KPI cards, reorder alerts, expiry buckets (30/60/90 days), usage trends
-- **Inventory operations** — stock-in, use/consume, stocktake, move between locations, `LOC:` shelf-label scanning
-- **Receive queue** — batch received items and commit together
-- **CSV import/export** — Excel-ready bulk data flows
-- **Authentication & RBAC** — JWT access + refresh; username/password + PIN login; admin/technician roles
-- **Mobile-friendly UI** — responsive shell with sticky scan input, large tap targets, haptic feedback
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=flat&logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-61DAFB?style=flat&logo=react&logoColor=black)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat&logo=mongodb&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat&logo=docker&logoColor=white)
 
-## Tech Stack
+---
 
-| Layer | Technology |
-|-------|------------|
-| Backend | FastAPI, Python 3.12, Motor/PyMongo, JWT (PyJWT), bcrypt |
-| Frontend | React 19, Tailwind CSS, shadcn/ui, Radix UI primitives, CRACO |
-| Data | MongoDB (mock mode available for development) |
-| Scanning | html5-qrcode (camera), auto-focused text input (USB) |
-| Deployment | Vercel (frontend), Docker, Render, Coolify, any VPS |
+## Quick Start
 
-## Getting Started
+### One-Command (Docker)
 
-### Prerequisites
+```bash
+git clone <repo-url>
+cd lab-reagent-trackerX
+docker compose up -d
+```
 
-- Python 3.11+
-- Node.js 18+
-- MongoDB (optional — backend falls back to in-memory mock MongoDB)
+- **App:** http://localhost:3000
+- **API docs:** http://localhost:8003/docs
+- **Login:** `admin` / `admin123`
 
-### Backend
+### Manual Setup
+
+<details>
+<summary>Backend</summary>
 
 ```bash
 cd backend
@@ -40,9 +36,11 @@ pip install -r requirements.txt
 python run_backend_fixed.py
 ```
 
-Server starts at **http://localhost:8003**. Swagger UI: **http://localhost:8003/docs**
+Server runs on http://localhost:8003
+</details>
 
-### Frontend
+<details>
+<summary>Frontend</summary>
 
 ```bash
 cd frontend
@@ -50,134 +48,185 @@ npm install
 npm start
 ```
 
-App opens at **http://localhost:3000**
+App runs on http://localhost:3000
+</details>
+
+---
+
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| **Barcode scanning** | USB scanner + camera (html5-qrcode); auto-register unknown barcodes |
+| **FEFO lot management** | First-Expired-First-Out consumption with days-left estimates |
+| **Audit log** | Append-only history with operator, timestamp, and quantities |
+| **Dashboard** | KPIs, reorder alerts, expiry buckets (30/60/90 days), usage trends |
+| **Inventory ops** | Stock-in, use/consume, stocktake, move between locations |
+| **Receive queue** | Batch received items and commit together |
+| **CSV import/export** | Bulk data flows for Excel users |
+| **Auth & RBAC** | JWT + PIN login; admin and technician roles |
+| **Purchase orders** | Create, track, and email POs with PDF generation |
+| **Expiry forecasting** | Predict waste risk based on usage rate vs. expiry date |
+| **Mobile-friendly** | Responsive UI with large tap targets and haptic feedback |
+
+---
+
+## Pre-loaded Inventory
+
+The backend auto-seeds **72 lab reagents and chemicals** from the HMNR Bio-Chemistry Routine Consumption Report (August 2026). On first launch, items are created with current stock levels — no manual data entry needed.
+
+Items include Glucose, Creatinine, Urea, Cholesterol, Bilirubin, SGPT/SGOT, Albumin, Calcium, Iron, and more. Each item has:
+
+- Original Item Code as barcode (e.g., `I0000727`)
+- Test name and pack size
+- Stocked quantity (closing balance from the consumption report)
+- Lot and expiry tracking
+
+To re-seed or append new items: `POST /api/admin/seed`
+
+---
 
 ## Deployment
 
-### Vercel (Frontend)
+### Render (Backend + Frontend)
 
-1. Push repo to GitHub
-2. Import on [vercel.com](https://vercel.com) — set **Root Directory** to `frontend`
-3. Framework auto-detected as Create React App
-4. Set env var: `REACT_APP_BACKEND_URL` → your backend URL
-5. Deploy
+1. **Create a MongoDB cluster** at [MongoDB Atlas](https://cloud.mongodb.com) (free tier works)
 
-The `frontend/vercel.json` handles SPA rewrites and static asset caching.
+2. **Deploy backend** on [render.com](https://render.com):
+   - New > Web Service > connect your repo
+   - **Root Directory:** `backend`
+   - **Runtime:** Docker
+   - **Environment variables:**
 
-### Render (Backend)
+   | Key | Value |
+   |-----|-------|
+   | `MONGO_URL` | Your MongoDB Atlas connection string |
+   | `DB_NAME` | `labstock` |
+   | `JWT_SECRET` | Any random string |
+   | `CORS_ORIGINS` | `*` |
+   | `FORCE_SEED` | `true` (first deploy only — auto-seeds 72 items) |
 
-1. Create a free MongoDB cluster at [MongoDB Atlas](https://cloud.mongodb.com)
-2. Import repo on [render.com](https://render.com) > New > Web Service
-3. Select **Docker** as runtime — Render will detect the root `Dockerfile`
-4. Set the following environment variables in the **Environment** tab:
+3. **Deploy frontend:**
+   - New > Static Site
+   - **Root Directory:** `frontend`
+   - **Build command:** `npm install --legacy-peer-deps && npm run build`
+   - **Publish directory:** `build`
+   - **Environment variable:** `REACT_APP_BACKEND_URL` → your backend URL
 
-| Key | Value |
-|-----|-------|
-| `MONGO_URL` | Your MongoDB Atlas connection string |
-| `DB_NAME` | `labstock` |
-| `JWT_SECRET` | A strong random secret |
-| `CORS_ORIGINS` | `*` (or your frontend domain) |
+### Vercel (Frontend only)
 
-5. Deploy
+1. Import repo on [vercel.com](https://vercel.com)
+2. Set **Root Directory** to `frontend`
+3. Set env var: `REACT_APP_BACKEND_URL` → your backend URL
+4. Deploy
 
-> **Note:** If using Blueprint (render.yaml), only `MONGO_URL` needs to be set manually — the rest are defined in the file.
-
-### Docker / Coolify / VPS
-
-```bash
-# Full stack (backend + MongoDB + frontend)
-docker compose up -d
-
-# Backend only (use external MongoDB)
-docker compose up -d backend
-```
-
-Set env vars via a `.env` file at project root or your platform's dashboard:
+### Docker Compose (Full stack)
 
 ```bash
+# Set up env
 cp backend/.env.example backend/.env
 # Edit backend/.env with your values
+
+# Start everything
+docker compose up -d
 ```
 
-### Environment Variables
+---
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MONGO_URL` | MongoDB connection string | `mongodb://localhost:27017` |
-| `DB_NAME` | Database name | `labstock` |
-| `JWT_SECRET` | JWT signing secret | `labstock-dev-secret-change-me-please` |
-| `CORS_ORIGINS` | Allowed origins | `*` |
-| `REACT_APP_BACKEND_URL` | Backend API URL (frontend) | `http://localhost:8000` |
+## Environment Variables
+
+| Variable | Where | Description | Default |
+|----------|-------|-------------|---------|
+| `MONGO_URL` | Backend | MongoDB connection string | `mongodb://localhost:27017` |
+| `DB_NAME` | Backend | Database name | `labstock` |
+| `JWT_SECRET` | Backend | JWT signing secret | `labstock-dev-secret-change-me-please` |
+| `CORS_ORIGINS` | Backend | Allowed origins (comma-separated) | `*` |
+| `FORCE_SEED` | Backend | Re-seed inventory on startup | `false` |
+| `REACT_APP_BACKEND_URL` | Frontend | Backend API URL | `http://localhost:8003` |
+
+---
 
 ## Default Credentials
 
-| Username | Password | PIN |
-|----------|----------|-----|
-| admin | admin123 | 1234 |
+| Username | Password | PIN | Role |
+|----------|----------|-----|------|
+| `admin` | `admin123` | `1234` | Admin |
+| `tech` | `tech123` | `5678` | Technician |
 
-## API Endpoints
+> Change these before deploying to production.
 
-- `POST /api/auth/login` — obtain JWT + refresh
-- `POST /api/resolve` — resolve barcode to item/lot
-- `POST /api/stock-in` — receive stock (register-on-first-seen)
-- `POST /api/use` — consume stock (FEFO)
-- `POST /api/stocktake` — physical count adjustment
-- `POST /api/move` — transfer between locations
-- `GET /api/dashboard` — KPIs, reorder, expiry
-- `GET /api/history` — audit log with filters
-- `GET /api/expiry-forecast` — waste predictions
-- `GET /api/usage-trends` — consumption trends
-- `POST /api/purchase-orders` — create PO
-- `GET /api/export/items.csv` — export items
-- `GET /api/export/history.csv` — export audit log
+---
 
-Full list available in Swagger UI (`/docs`).
+## API Reference
 
-## Testing
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/auth/login` | POST | Login, get JWT token |
+| `/api/resolve` | POST | Look up barcode → item + lots |
+| `/api/stock-in` | POST | Add stock (auto-registers new barcodes) |
+| `/api/use` | POST | Consume stock (FEFO) |
+| `/api/stocktake` | POST | Physical count adjustment |
+| `/api/move` | POST | Transfer item to new location |
+| `/api/items` | GET | List all items with totals |
+| `/api/dashboard` | GET | KPIs, reorder list, expiring items |
+| `/api/history` | GET | Audit log with filters |
+| `/api/expiry-forecast` | GET | Waste risk predictions |
+| `/api/usage-trends` | GET | Consumption trends over time |
+| `/api/purchase-orders` | POST | Create purchase order |
+| `/api/import` | POST | Bulk import via CSV |
+| `/api/export/items.csv` | GET | Export items as CSV |
+| `/api/export/history.csv` | GET | Export audit log as CSV |
+| `/api/admin/seed` | POST | Seed/append inventory items |
 
-```bash
-cd backend
-python test_backend.py
-```
+Full interactive docs at `/docs` (Swagger UI).
 
-End-to-end flows covered: register → receive → use (FEFO) → move → stocktake → dashboard alerts → export/import → auth + role restrictions.
+---
 
 ## Project Structure
 
 ```
 lab-reagent-trackerX/
 ├── backend/
-│   ├── server.py              # FastAPI application
-│   ├── run_backend_fixed.py   # Dev launcher (mock MongoDB)
+│   ├── server.py                # FastAPI app + all routes
+│   ├── run_backend_fixed.py     # Dev server (mock MongoDB)
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   └── .env.example
 ├── frontend/
 │   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   └── lib/
-│   ├── craco.config.js
-│   ├── tailwind.config.js
+│   │   ├── components/          # Reusable UI components
+│   │   ├── pages/               # Page-level views
+│   │   └── lib/                 # API client, utils
 │   ├── package.json
+│   ├── tailwind.config.js
 │   ├── vercel.json
-│   ├── Dockerfile
-│   └── .env.example
+│   └── Dockerfile
+├── import_excel.py              # Import items from Excel catalog
+├── import_consumption.py        # Import consumption report data
+├── Lab Inventory Optimized.xlsx # Source inventory catalog
 ├── docker-compose.yml
-├── Dockerfile
 ├── render.yaml
 └── README.md
 ```
 
-## Status
+---
 
-LabStock is **complete and production-ready**. All phases delivered:
+## Data Import Scripts
 
-- Phase 1: POC — FEFO, audit log, resolve/stock-in/stock-out
-- Phase 2: Full app — scan page, dashboard, history, CSV, receive queue, stocktake, move
-- Phase 3: Auth — JWT + PIN, RBAC, seeded accounts, protected endpoints
-- Phase 4: Backups/snapshots, export/import, mobile polish
+For importing data outside the auto-seed:
 
-## Design
+```bash
+# Import items from the Excel catalog
+python import_excel.py
 
-Clean clinical UI with scan-first ergonomics. High-contrast palette for bright lab environments. Dense data tables with sticky headers, right-aligned numerics, and status badges. Full keyboard support and WCAG AA focus.
+# Import consumption report data (stocks + usage)
+python import_consumption.py
+```
+
+Both scripts require the backend to be running.
+
+---
+
+## License
+
+Private — Vijaya Diagnostics Centre.

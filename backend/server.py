@@ -1428,13 +1428,22 @@ LAB_INVENTORY = [
 ]
 
 
-async def _seed_inventory():
-    """Seed lab inventory items and stock on first launch if DB is empty."""
-    existing = await db.items.count_documents({})
-    if existing > 0:
-        return
-    logger.info("Seeding lab inventory (%d items)...", len(LAB_INVENTORY))
+async def _seed_inventory(force: bool = False):
+    """Seed lab inventory items and stock. Appends missing items, skips existing barcodes."""
+    if force:
+        await db.items.delete_many({})
+        await db.lots.delete_many({})
+        await db.log.delete_many({})
+        logger.info("Force-seed: cleared all items, lots, and logs.")
+    existing_barcodes = set()
+    async for doc in db.items.find({}, {"barcode": 1, "_id": 0}):
+        existing_barcodes.add(doc.get("barcode", ""))
+    added = 0
+    skipped = 0
     for barcode, name, unit, expiry, total_available, used in LAB_INVENTORY:
+        if barcode in existing_barcodes:
+            skipped += 1
+            continue
         item = {
             "id": new_id(), "barcode": barcode, "name": name,
             "unit": unit, "min_stock": 0, "location": "", "storage": "Ambient",
@@ -1442,13 +1451,11 @@ async def _seed_inventory():
         }
         await db.items.insert_one(dict(item))
         item_id = item["id"]
-        # Stock the total available quantity
         if total_available > 0:
             await db.lots.insert_one({
                 "id": new_id(), "item_id": item_id,
                 "lot": f"SEED-{barcode}", "expiry": expiry, "qty": total_available,
             })
-        # Record consumption
         if used > 0:
             remaining = used
             lots = await db.lots.find({"item_id": item_id}).to_list(100)
@@ -1462,8 +1469,17 @@ async def _seed_inventory():
                     remaining -= take
             await log_action("use", item_id, used, lot=f"SEED-{barcode}",
                              technician="system", detail="Seeded consumption from HMNR Aug 2026 report")
+        added += 1
     count = await db.items.count_documents({})
-    logger.info("Seeded %d lab inventory items with stock levels.", count)
+    logger.info("Seed complete: %d added, %d skipped (already existed), %d total.", added, skipped, count)
+
+
+@api.post("/admin/seed")
+async def admin_seed(admin: dict = Depends(require_admin)):
+    """Append missing inventory items. Existing barcodes are skipped."""
+    await _seed_inventory()
+    count = await db.items.count_documents({})
+    return {"ok": True, "message": f"Seed complete. {count} total items.", "item_count": count}
 
 
 @app.on_event("startup")
@@ -1491,6 +1507,10 @@ async def startup():
             "role": "technician", "active": True, "created_at": now_iso(),
         })
     await _seed_inventory()
+    # Also force-seed if FORCE_SEED env var is set
+    if os.environ.get("FORCE_SEED", "").lower() in ("1", "true", "yes"):
+        await _seed_inventory(force=True)
+        logger.info("FORCE_SEED is enabled — inventory re-seeded.")
 
 
 @app.on_event("shutdown")
