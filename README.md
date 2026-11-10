@@ -204,6 +204,11 @@ lab-reagent-trackerX/
 │   ├── tailwind.config.js
 │   ├── vercel.json
 │   └── Dockerfile
+├── mobile/                      # Expo / React Native client (same backend)
+│   ├── src/app/                 # expo-router screens (login + 8 nav sections)
+│   ├── src/lib/                 # API client, endpoints, utils
+│   ├── app.json, eas.json
+│   └── README.md
 ├── import_excel.py              # Import items from Excel catalog
 ├── import_consumption.py        # Import consumption report data
 ├── Lab Inventory Optimized.xlsx # Source inventory catalog
@@ -211,6 +216,24 @@ lab-reagent-trackerX/
 ├── render.yaml
 └── README.md
 ```
+
+---
+
+## Mobile App (Expo)
+
+A React Native / Expo client lives in [`mobile/`](./mobile) and reuses this **same backend** —
+full parity with the web app (Login, Scan, Dashboard, Bulk Add, Purchase Orders, Labels, Reports,
+Audit Log, Users). Nothing in `backend/` or `frontend/` is modified.
+
+```bash
+cd backend && python run_backend_fixed.py     # API on http://localhost:8003
+cd ../mobile && npm install && npx expo start -c
+```
+
+Set `mobile/.env` → `EXPO_PUBLIC_API_URL` to a URL reachable **from the device**
+(`localhost` for web/simulator, `10.0.2.2` for the Android emulator, your LAN IP for a phone).
+Camera scanning, secure session storage, haptics, CSV/PDF export and label printing all run in
+**Expo Go**. See [`mobile/README.md`](./mobile/README.md) for details.
 
 ---
 

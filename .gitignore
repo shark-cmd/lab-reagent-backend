@@ -48,6 +48,10 @@ dump.rdb
 
 # Python
 __pycache__/
+*pytest_cache*/
+.pytest_cache/
+.pytest_cache_temp/
+*mongomock*/
 *pyc*
 venv/
 .venv/
@@ -83,9 +87,16 @@ android-sdk/frontend/node_modules/.cache/default-development/8.pack
 frontend/node_modules/.cache/default-development/8.pack
 frontend/node_modules/.cache/default-development/4.pack
 frontend/node_modules/.cache/default-development/9.pack
+
+# NOTE: mobile/.env is intentionally NOT ignored here. The root `# Environment
+# files` block below ignores `.env`, but EAS Build archives the git root and
+# needs mobile/.env to inline EXPO_PUBLIC_API_URL into the app bundle.
 .env
 .env.*
 *.env
 credentials.json
 *.key
 .credentials
+
+# Allow the mobile app's non-secret API URL through (EAS Build archives the git root)
+!mobile/.env
