@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
-"""Test the LabStock backend on port 8001."""
+"""Test the LabStock backend on port 8003."""
+import sys
 import requests
+
+try:
+    sys.stdout.reconfigure(errors="replace")
+except Exception:
+    pass
 
 base_url = "http://localhost:8003"
 
-print("=== Testing LabStock Backend (Port 8001) ===\n")
+print("=== Testing LabStock Backend (Port 8003) ===\n")
 
 # Test 1: Check backend connectivity
 print("1. Testing backend connectivity...")
 try:
     response = requests.get(f"{base_url}/docs", timeout=5)
     if response.status_code == 200:
-        print("  ✓ Backend is running on port 8001")
+        print("  ✓ Backend is running on port 8003")
     else:
         print(f"  ✗ Backend not responding (status: {response.status_code})")
 except Exception as e:
@@ -35,7 +41,8 @@ print("\n3. Testing login...")
 try:
     response = requests.post(f"{base_url}/api/auth/login", json={
         "username": "admin",
-        "password": "admin123"
+        "password": "admin123",
+        "pin": "1234"
     }, timeout=5)
     if response.status_code == 200:
         data = response.json()

@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 """Test the LabStock backend API."""
+import sys
 import requests
 
-base_url = "http://localhost:8000"
+try:
+    sys.stdout.reconfigure(errors="replace")
+except Exception:
+    pass
+
+base_url = "http://localhost:8003"
 
 print("=== Testing LabStock Backend ===\n")
 
@@ -24,7 +30,8 @@ print("\n2. Testing login...")
 try:
     response = requests.post(f"{base_url}/api/auth/login", json={
         "username": "admin",
-        "password": "admin123"
+        "password": "admin123",
+        "pin": "1234"
     })
     if response.status_code == 200:
         data = response.json()

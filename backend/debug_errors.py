@@ -1,8 +1,15 @@
 #!/usr/bin/env python3
 """Debug the backend errors."""
+import os
+import sys
 import requests
 
-base_url = "http://localhost:8002"
+try:
+    sys.stdout.reconfigure(errors="replace")
+except Exception:
+    pass
+
+base_url = "http://localhost:8003"
 
 print("=== Debugging Backend Errors ===\n")
 
@@ -10,7 +17,8 @@ print("=== Debugging Backend Errors ===\n")
 print("Getting auth token...")
 response = requests.post(f"{base_url}/api/auth/login", json={
     "username": "admin",
-    "password": "admin123"
+    "password": "admin123",
+    "pin": "1234"
 })
 if response.status_code == 200:
     token = response.json()['token']
@@ -50,6 +58,9 @@ except Exception as e:
 
 print()
 print("Checking backend logs...")
-import subprocess
-result = subprocess.run(['tail', '-20', '/tmp/backend.log'], capture_output=True, text=True)
-print(result.stdout[-1000:])  # Last 1000 chars
+log_path = os.path.join(os.path.dirname(__file__), "backend.log")
+if os.path.exists(log_path):
+    with open(log_path, "r", encoding="utf-8", errors="replace") as fh:
+        print("".join(fh.readlines()[-20:])[-1000:])
+else:
+    print(f"  (no {log_path} found - start the server with output redirected to see logs)")

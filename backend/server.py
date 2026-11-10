@@ -5,20 +5,24 @@ FastAPI + MongoDB backend
 import os
 import io
 import csv
+import re
+import math
 import uuid
 import json
+import calendar
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 from datetime import datetime, timezone, timedelta, date
 from typing import List, Optional
 
-from fastapi import FastAPI, APIRouter, HTTPException, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 import jwt
 import bcrypt
 
@@ -30,16 +34,56 @@ mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
-JWT_SECRET = os.environ.get("JWT_SECRET", "labstock-dev-secret-change-me-please")
+DEFAULT_JWT_SECRET = "labstock-dev-secret-change-me-please"
+JWT_SECRET = os.environ.get("JWT_SECRET", DEFAULT_JWT_SECRET)
 JWT_ALG = "HS256"
-JWT_EXPIRE_HOURS = 12
+JWT_EXPIRE_HOURS = int(os.environ.get("JWT_EXPIRE_HOURS", "8"))
 
 FAR_FUTURE = "9999-12-31"  # blank expiry sorts LAST under FEFO
+
+# Brute-force protection for /auth/login (process-local, resets on restart)
+LOGIN_MAX_FAILURES = int(os.environ.get("LOGIN_MAX_FAILURES", "5"))
+LOGIN_LOCKOUT_SECONDS = int(os.environ.get("LOGIN_LOCKOUT_SECONDS", "300"))
+_login_failures: dict = {}
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("labstock")
 
-app = FastAPI(title="LabStock API")
+
+async def lifespan(app: FastAPI):
+    if JWT_SECRET == DEFAULT_JWT_SECRET:
+        logger.warning("JWT_SECRET is set to the insecure default - set a strong JWT_SECRET before production.")
+    try:
+        await db.items.create_index("barcode", unique=True)
+        await db.lots.create_index([("item_id", 1), ("expiry", 1)])
+        await db.log.create_index([("ts", -1)])
+        await db.users.create_index("username", unique=True)
+    except Exception as e:
+        logger.warning(f"Index creation: {e}")
+    if not await db.users.find_one({"username": "admin"}):
+        await db.users.insert_one({
+            "id": new_id(), "username": "admin", "name": "Lab Admin",
+            "password_hash": hash_password("admin123"),
+            "pin_hash": hash_password("1234"),
+            "role": "admin", "active": True, "created_at": now_iso(),
+        })
+        logger.info("Seeded default admin user (admin/admin123, PIN 1234)")
+    if not await db.users.find_one({"username": "tech"}):
+        await db.users.insert_one({
+            "id": new_id(), "username": "tech", "name": "Jane Tech",
+            "password_hash": hash_password("tech123"),
+            "pin_hash": hash_password("5678"),
+            "role": "technician", "active": True, "created_at": now_iso(),
+        })
+    await _seed_inventory()
+    if os.environ.get("FORCE_SEED", "").lower() in ("1", "true", "yes"):
+        await _seed_inventory(force=True)
+        logger.info("FORCE_SEED is enabled - inventory re-seeded.")
+    yield
+    client.close()
+
+
+app = FastAPI(title="LabStock API", lifespan=lifespan)
 api = APIRouter(prefix="/api")
 security = HTTPBearer(auto_error=False)
 
@@ -100,18 +144,75 @@ async def require_admin(user: dict = Depends(get_current_user)) -> dict:
     return user
 
 
+_EXPIRY_FORMATS = ("%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y", "%d-%m-%Y")
+
+
+def normalize_expiry(expiry: str) -> str:
+    """Return a canonical ISO YYYY-MM-DD expiry, or "" when it cannot be understood.
+
+    Accepts ISO plus the DD.MM.YYYY / DD/MM/YYYY / DD-MM-YYYY formats used in the source
+    inventory reports. Invalid calendar days (e.g. 31.06.2027) are clamped to the last valid
+    day of the month so the lot still sorts and raises expiry alerts.
+    """
+    if not expiry:
+        return ""
+    s = str(expiry).strip()
+    if not s:
+        return ""
+    for fmt in _EXPIRY_FORMATS:
+        try:
+            return datetime.strptime(s, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            pass
+    m = re.match(r"^(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})$", s)
+    if m:
+        day, month, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        month = min(max(month, 1), 12)
+        day = min(max(day, 1), calendar.monthrange(year, month)[1])
+        return f"{year:04d}-{month:02d}-{day:02d}"
+    return ""
+
+
 def expiry_sort_key(expiry: str) -> str:
-    return expiry if expiry else FAR_FUTURE
+    return normalize_expiry(expiry) or FAR_FUTURE
 
 
 def days_until(expiry: str) -> Optional[int]:
-    if not expiry:
+    iso = normalize_expiry(expiry)
+    if not iso:
         return None
     try:
-        d = datetime.strptime(expiry, "%Y-%m-%d").date()
+        d = datetime.strptime(iso, "%Y-%m-%d").date()
         return (d - date.today()).days
     except Exception:
         return None
+
+
+def _throttle_key(req: "Request", username: str) -> str:
+    host = req.client.host if req.client else "unknown"
+    return f"{host}:{username.strip().lower()}"
+
+
+def _is_locked_out(key: str) -> bool:
+    rec = _login_failures.get(key)
+    if not rec:
+        return False
+    count, last = rec
+    if count < LOGIN_MAX_FAILURES:
+        return False
+    if (datetime.now(timezone.utc) - last).total_seconds() > LOGIN_LOCKOUT_SECONDS:
+        _login_failures.pop(key, None)
+        return False
+    return True
+
+
+def _record_login_failure(key: str) -> None:
+    count, _ = _login_failures.get(key, (0, None))
+    _login_failures[key] = (count + 1, datetime.now(timezone.utc))
+
+
+def _clear_login_failures(key: str) -> None:
+    _login_failures.pop(key, None)
 
 
 async def log_action(action: str, item_id: str, qty: float, lot: str = "", technician: str = "", detail: str = ""):
@@ -160,6 +261,21 @@ async def usage_rates_batch(item_ids: list, window_days: int = 30) -> dict:
 
 
 # ----------------------- Models -----------------------
+MAX_QTY = 1_000_000_000.0
+
+
+def _finite_quantity(v: float, *, allow_zero: bool = True) -> float:
+    if v is None:
+        return v
+    if not math.isfinite(v):
+        raise ValueError("quantity must be a finite number")
+    if v < 0 or (v == 0 and not allow_zero):
+        raise ValueError("quantity must be greater than 0")
+    if v > MAX_QTY:
+        raise ValueError("quantity is unreasonably large")
+    return v
+
+
 class LoginReq(BaseModel):
     username: str
     password: str
@@ -198,16 +314,31 @@ class StockInReq(BaseModel):
     storage: str = "Ambient"
     cost: float = 0
 
+    @field_validator("qty")
+    @classmethod
+    def _v_qty(cls, v: float) -> float:
+        return _finite_quantity(v)
+
 
 class UseReq(BaseModel):
     barcode: str
     qty: float
+
+    @field_validator("qty")
+    @classmethod
+    def _v_qty(cls, v: float) -> float:
+        return _finite_quantity(v, allow_zero=False)
 
 
 class StocktakeReq(BaseModel):
     barcode: str
     counted: float
     location: Optional[str] = None
+
+    @field_validator("counted")
+    @classmethod
+    def _v_counted(cls, v: float) -> float:
+        return _finite_quantity(v)
 
 
 class MoveReq(BaseModel):
@@ -315,15 +446,22 @@ async def do_stock_out(barcode: str, qty: float, technician: str, action: str = 
 
 # ----------------------- Auth routes -----------------------
 @api.post("/auth/login")
-async def login(req: LoginReq):
+async def login(req: LoginReq, request: Request):
+    key = _throttle_key(request, req.username)
+    if _is_locked_out(key):
+        raise HTTPException(status_code=429, detail="Too many failed login attempts. Try again later.")
     user = await db.users.find_one({"username": req.username.strip().lower()})
-    if not user or not user.get("active", True):
+    if not user or not user.get("active", True) or not verify_password(req.password, user.get("password_hash", "")):
+        _record_login_failure(key)
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    if not verify_password(req.password, user.get("password_hash", "")):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    if user.get("pin_hash") and req.pin is not None and req.pin != "":
+    if user.get("pin_hash"):
+        if not req.pin:
+            _record_login_failure(key)
+            raise HTTPException(status_code=401, detail="PIN required")
         if not verify_password(req.pin, user["pin_hash"]):
+            _record_login_failure(key)
             raise HTTPException(status_code=401, detail="Invalid PIN")
+    _clear_login_failures(key)
     token = make_token(user)
     return {"token": token, "user": {"id": user["id"], "username": user["username"],
             "name": user.get("name"), "role": user.get("role", "technician")}}
@@ -474,7 +612,7 @@ async def move_route(req: MoveReq, user: dict = Depends(get_current_user)):
 
 
 @api.post("/item-update")
-async def item_update(req: ItemUpdateReq, user: dict = Depends(get_current_user)):
+async def item_update(req: ItemUpdateReq, admin: dict = Depends(require_admin)):
     upd = {}
     for f in ["name", "unit", "min_stock", "location", "storage", "cost"]:
         v = getattr(req, f)
@@ -485,7 +623,7 @@ async def item_update(req: ItemUpdateReq, user: dict = Depends(get_current_user)
     res = await db.items.update_one({"id": req.id}, {"$set": upd})
     if res.matched_count == 0:
         raise HTTPException(status_code=404, detail="Item not found")
-    await log_action("edit", req.id, 0, technician=user["name"], detail=f"updated {list(upd.keys())}")
+    await log_action("edit", req.id, 0, technician=admin["name"], detail=f"updated {list(upd.keys())}")
     return {"ok": True}
 
 
@@ -772,7 +910,7 @@ async def locations(user: dict = Depends(get_current_user)):
 
 # ----------------------- CSV import / export -----------------------
 @api.post("/import")
-async def import_csv(req: ImportReq, user: dict = Depends(get_current_user)):
+async def import_csv(req: ImportReq, admin: dict = Depends(require_admin)):
     text = req.text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="No data provided")
@@ -805,7 +943,7 @@ async def import_csv(req: ImportReq, user: dict = Depends(get_current_user)):
                 storage=g("storage").strip() or "Ambient",
                 cost=float(g("cost", "0") or 0),
             )
-            await do_stock_in(sreq, technician=user["name"])
+            await do_stock_in(sreq, technician=admin["name"])
             imported += 1
         except Exception as e:
             errors.append(f"Row {row_num}: {str(e)}")
@@ -1173,11 +1311,12 @@ async def expiry_forecast(user: dict = Depends(get_current_user)):
     rows = []
     total_waste_value = 0.0
     at_risk = 0
+    usage_rates = await usage_rates_batch([it["id"] for it in items])
     for it in items:
         lots = [l for l in lots_by_item.get(it["id"], []) if l.get("qty", 0) > 0]
         if not lots:
             continue
-        rate = await usage_rate_per_day(it["id"])  # units/day
+        rate = usage_rates.get(it["id"], 0.0)  # units/day
         cost = it.get("cost", 0) or 0
         # FEFO order: earliest expiry first, blank last
         lots.sort(key=lambda l: expiry_sort_key(l.get("expiry", "")))
@@ -1446,7 +1585,7 @@ async def _seed_inventory(force: bool = False):
             continue
         item = {
             "id": new_id(), "barcode": barcode, "name": name,
-            "unit": unit, "min_stock": 0, "location": "", "storage": "Ambient",
+            "unit": unit, "min_stock": used, "location": "", "storage": "Ambient",
             "cost": 0, "created_at": now_iso(),
         }
         await db.items.insert_one(dict(item))
@@ -1454,7 +1593,7 @@ async def _seed_inventory(force: bool = False):
         if total_available > 0:
             await db.lots.insert_one({
                 "id": new_id(), "item_id": item_id,
-                "lot": f"SEED-{barcode}", "expiry": expiry, "qty": total_available,
+                "lot": f"SEED-{barcode}", "expiry": normalize_expiry(expiry), "qty": total_available,
             })
         if used > 0:
             remaining = used
@@ -1467,8 +1606,10 @@ async def _seed_inventory(force: bool = False):
                 if take > 0:
                     await db.lots.update_one({"_id": lot["_id"]}, {"$set": {"qty": avail - take}})
                     remaining -= take
-            await log_action("use", item_id, used, lot=f"SEED-{barcode}",
-                             technician="system", detail="Seeded consumption from HMNR Aug 2026 report")
+            consumed = used - remaining
+            if consumed > 0:
+                await log_action("use", item_id, consumed, lot=f"SEED-{barcode}",
+                                 technician="system", detail="Seeded consumption from HMNR Aug 2026 report")
         added += 1
     count = await db.items.count_documents({})
     logger.info("Seed complete: %d added, %d skipped (already existed), %d total.", added, skipped, count)
@@ -1482,47 +1623,19 @@ async def admin_seed(admin: dict = Depends(require_admin)):
     return {"ok": True, "message": f"Seed complete. {count} total items.", "item_count": count}
 
 
-@app.on_event("startup")
-async def startup():
-    try:
-        await db.items.create_index("barcode", unique=True)
-        await db.lots.create_index([("item_id", 1), ("expiry", 1)])
-        await db.log.create_index([("ts", -1)])
-        await db.users.create_index("username", unique=True)
-    except Exception as e:
-        logger.warning(f"Index creation: {e}")
-    if not await db.users.find_one({"username": "admin"}):
-        await db.users.insert_one({
-            "id": new_id(), "username": "admin", "name": "Lab Admin",
-            "password_hash": hash_password("admin123"),
-            "pin_hash": hash_password("1234"),
-            "role": "admin", "active": True, "created_at": now_iso(),
-        })
-        logger.info("Seeded default admin user (admin/admin123, PIN 1234)")
-    if not await db.users.find_one({"username": "tech"}):
-        await db.users.insert_one({
-            "id": new_id(), "username": "tech", "name": "Jane Tech",
-            "password_hash": hash_password("tech123"),
-            "pin_hash": hash_password("5678"),
-            "role": "technician", "active": True, "created_at": now_iso(),
-        })
-    await _seed_inventory()
-    # Also force-seed if FORCE_SEED env var is set
-    if os.environ.get("FORCE_SEED", "").lower() in ("1", "true", "yes"):
-        await _seed_inventory(force=True)
-        logger.info("FORCE_SEED is enabled — inventory re-seeded.")
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    client.close()
-
-
 app.include_router(api)
+
+# CORS: never pair a wildcard origin with credentials (invalid + over-permissive).
+_cors_origins = [o.strip() for o in os.environ.get("CORS_ORIGINS", "*").split(",") if o.strip()]
+_allow_all_origins = "*" in _cors_origins
+if _allow_all_origins and os.environ.get("CORS_ORIGINS", "*").strip() != "*":
+    logger.warning("CORS_ORIGINS mixes '*' with explicit origins; '*' wins.")
+if _allow_all_origins:
+    logger.warning("CORS allows all origins - restrict CORS_ORIGINS before production.")
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
+    allow_credentials=not _allow_all_origins,
+    allow_origins=_cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

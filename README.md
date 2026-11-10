@@ -23,7 +23,7 @@ docker compose up -d
 
 - **App:** http://localhost:3000
 - **API docs:** http://localhost:8003/docs
-- **Login:** `admin` / `admin123`
+- **Login:** `admin` / `admin123` / PIN `1234`
 
 ### Manual Setup
 
@@ -140,6 +140,9 @@ docker compose up -d
 | `MONGO_URL` | Backend | MongoDB connection string | `mongodb://localhost:27017` |
 | `DB_NAME` | Backend | Database name | `labstock` |
 | `JWT_SECRET` | Backend | JWT signing secret | `labstock-dev-secret-change-me-please` |
+| `JWT_EXPIRE_HOURS` | Backend | Access-token lifetime (hours) | `8` |
+| `LOGIN_MAX_FAILURES` | Backend | Failed logins before a temporary lockout | `5` |
+| `LOGIN_LOCKOUT_SECONDS` | Backend | Lockout duration after too many failures | `300` |
 | `CORS_ORIGINS` | Backend | Allowed origins (comma-separated) | `*` |
 | `FORCE_SEED` | Backend | Re-seed inventory on startup | `false` |
 | `REACT_APP_BACKEND_URL` | Frontend | Backend API URL | `http://localhost:8003` |

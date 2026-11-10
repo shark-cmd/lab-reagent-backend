@@ -70,6 +70,7 @@ const KpiCard = ({ icon: Icon, label, value, sub, tint, testid }) => (
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -210,9 +211,11 @@ export default function Dashboard() {
           <p className="text-sm text-slate-500">Inventory overview, alerts &amp; data tools</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={() => setImportOpen(true)} data-testid="import-open-button">
-            <Upload className="h-4 w-4 mr-1.5" /> Import CSV
-          </Button>
+          {isAdmin && (
+            <Button size="sm" onClick={() => setImportOpen(true)} data-testid="import-open-button">
+              <Upload className="h-4 w-4 mr-1.5" /> Import CSV
+            </Button>
+          )}
           <div className="h-8 w-px bg-slate-200 hidden sm:block" role="separator" />
           <Button variant="outline" size="sm" onClick={load} data-testid="dashboard-refresh-button">
             <RefreshCw className="h-4 w-4 mr-1.5" /> Refresh
@@ -436,10 +439,12 @@ export default function Dashboard() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditItem({ ...it })} data-testid={`edit-item-button-${it.id}`}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          {user?.role === "admin" && (
+                          {isAdmin && (
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditItem({ ...it })} data-testid={`edit-item-button-${it.id}`}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {isAdmin && (
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:text-red-600" onClick={() => deleteItem(it)} data-testid={`delete-item-button-${it.id}`}>
                               <Trash2 className="h-4 w-4" />
                             </Button>

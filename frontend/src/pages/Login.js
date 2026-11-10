@@ -19,8 +19,8 @@ export default function Login() {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!username || !password) {
-      toast.error("Enter username and password");
+    if (!username || !password || !pin) {
+      toast.error("Enter username, password and PIN");
       return;
     }
     setLoading(true);
@@ -72,7 +72,7 @@ export default function Login() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label>PIN <span className="text-slate-400 font-normal">(optional)</span></Label>
+              <Label>PIN <span className="text-slate-400 font-normal">(required)</span></Label>
               <InputOTP maxLength={4} value={pin} onChange={setPin} data-testid="login-pin-input" containerClassName="justify-start">
                 <InputOTPGroup>
                   <InputOTPSlot index={0} />
